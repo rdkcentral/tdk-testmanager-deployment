@@ -1,4 +1,3 @@
-
 #!/bin/bash
 ##########################################################################
 # If not stated otherwise in this file or this component's LICENSE
