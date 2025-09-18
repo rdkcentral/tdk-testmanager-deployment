@@ -1,5 +1,6 @@
+#!/bin/bash
 ##########################################################################
-# If not stated otherwise in this file or this component's Licenses.txt
+# If not stated otherwise in this file or this component's LICENSE
 # file the following copyright and licenses apply:
 #
 # Copyright 2025 RDK Management
@@ -16,7 +17,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-#!/bin/bash
+
 backup_path="$1"
 deploy_path="$2"
 upload_path="$3"
