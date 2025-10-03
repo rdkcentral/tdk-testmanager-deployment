@@ -1,6 +1,6 @@
-# TDK Test Manager Backend
+# TDK Test Manager Deployment
 
-Contains TDK test manager tool backend implementations - a Spring Boot application for managing and executing test suites in the RDK ecosystem.
+Contains TDK test manager tool deployment files
 
 ## Table of Contents
 
@@ -12,11 +12,9 @@ Contains TDK test manager tool backend implementations - a Spring Boot applicati
 
 ## Overview
 
-The TDK Test Manager Backend is a comprehensive Spring Boot application that provides:
-- Test execution and management capabilities
-- Database integration with MySQL
-- RESTful API for frontend communication
-- Docker-based deployment with multi-service architecture
+This project uses Docker Compose to orchestrate multiple services including the backend application, frontend, and database.
+It also contains the data dump and other release migration related configurations
+
 
 ## Docker Setup
 
@@ -145,8 +143,9 @@ Generating Your JWT Secret
  
 #####Using Online Secure Generators
 Visit a reputable online password generator:
-- [passwords-generator.org](https://passwords-generator.org/) - Set length to 64+ characters
-- [1password.com/password-generator](https://1password.com/password-generator/) - Use 64+ characters
+- [passwords-generator.org](https://passwords-generator.org/) - Set length to 64+ characters by selecting only
+  the numbers and character options
+
 ### Environment Variables
 
 | Variable | Description | Default | Required |
