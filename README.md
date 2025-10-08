@@ -131,7 +131,7 @@ chmod 655 database/init/tdk-master-data-dump.sql
 ### 5. Build and Start Services
 
 ```bash
-docker compose --env-file .env up -d --build
+docker compose build --no-cache && docker compose up -d
 ```
 
 This single command will:
