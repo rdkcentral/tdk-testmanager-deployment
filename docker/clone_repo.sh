@@ -18,40 +18,45 @@
 # limitations under the License.
 ##########################################################################
 
+# Variables
+backendRepo="https://github.com/rdkcentral/tdk-testmanager-backend.git"
+coreRepo="https://github.com/rdkcentral/tdk-core.git"
+backendBranch="feature/RDKPREINTG-15550"
+coreBranch="rdk-next"
+backendDir="tdk-testmanager-backend"
+coreDir="tdk-core"
 
-# Step 1: Clone the repository (if not already cloned) and navigate to the framework directory
-echo "Cloning the repository (if not already done)..."
-if [ ! -d "tdk" ]; then
-    git clone "https://code.rdkcentral.com/r/rdk/tools/tdk"
-fi
+# Clone backend repo
+if [ -d "$backendDir" ]; then rm -rf "$backendDir"; fi
+git clone -b "$backendBranch" "$backendRepo"
 
-cd tdk/ || { echo "Failed to navigate to tdk/framwork directory"; exit 1; }
+# Clone core repo
+if [ -d "$coreDir" ]; then rm -rf "$coreDir"; fi
+git clone -b "$coreBranch" "$coreRepo"
 
-# Step 2: Git Checkout (switch to the desired branch or commit)
-echo "Switching to the correct branch..."
-git checkout  feature-tdk-newui # Replace 'main' with your branch or commit
+# Copy fileStore from core to backend
+cp -r "$coreDir/framework/web-app/fileStore" "$backendDir/src/main/webapp/"
 
-cd tdkservice/tdkservice
 
-# Step 3: Build the WAR using Maven (skip tests)
-echo "Building the WAR file using Maven..."
+# Build WAR file using Maven
+cd "$backendDir"
 mvn clean install -DskipTests=true
 
-# Step 4: Check if any WAR file exists and rename it to tdkservice.war
+# Check if any WAR file exists and rename it to tdkservice.war
 WAR_FILE=$(ls target/*.war 2>/dev/null)
 
 if [ -n "$WAR_FILE" ]; then
-    echo "WAR file found: $WAR_FILE"
-    
-    # Step 5: Rename the WAR file to tdkservice.war
-    mv "$WAR_FILE" target/tdkservice.war
-    echo "WAR file renamed to tdkservice.war."
-    
-    # Step 6: Copy the renamed WAR file to the Tomcat webapps directory
-    echo "Copying WAR file to Tomcat webapps..."
-    cp target/tdkservice.war /opt/tomcat/webapps/
+	echo "WAR file found: $WAR_FILE"
+	# Step 5: Rename the WAR file to tdkservice.war
+	mv "$WAR_FILE" target/tdkservice.war
+	echo "WAR file renamed to tdkservice.war."
+	# Step 6: Copy the renamed WAR file to the Tomcat webapps directory
+	echo "Copying WAR file to Tomcat webapps..."
+	cp target/tdkservice.war /opt/tomcat/webapps/
 else
-    echo "No WAR file found in target directory."
-    exit 1
+	echo "No WAR file found in target directory."
 fi
+
+echo "Build and deployment complete."
+
 

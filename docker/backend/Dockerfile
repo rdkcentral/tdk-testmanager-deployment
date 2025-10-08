@@ -16,7 +16,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-# Use official Tomcat 11 with JDK 21
 FROM ubuntu:24.04
 
 # Set environment variables
@@ -37,7 +36,7 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     git \
     openjdk-21-jdk \
     wget \
-	curl \
+    curl \
     sshpass \
     cmake \
     build-essential \
@@ -75,7 +74,7 @@ RUN pip install --no-cache-dir pip==25.1.1 \
     opencv-python==4.9.0.80 \
     pytesseract==0.3.10
 
-# Optional: Install Maven if needed
+#  Install Maven
 ENV MAVEN_VERSION=3.9.9
 ENV MAVEN_HOME=/opt/maven
 RUN wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -P /tmp \
@@ -84,7 +83,6 @@ RUN wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries
  && rm /tmp/apache-maven-${MAVEN_VERSION}-bin.tar.gz
 ENV PATH=$MAVEN_HOME/bin:$PATH
 
-# Install Tomca
 # Install Tomcat 11
 RUN wget https://archive.apache.org/dist/tomcat/tomcat-11/v11.0.6/bin/apache-tomcat-11.0.6.tar.gz -P /tmp \
     && tar xf /tmp/apache-tomcat-11.0.6.tar.gz -C /opt \
@@ -98,18 +96,29 @@ ENV PATH=$CATALINA_HOME/bin:$PATH
 # Make Tomcat scripts executable
 RUN chmod +x $CATALINA_HOME/bin/*.sh
 
-# Copy and run your custom scripts
+# Copy clone script and make it executable
 COPY clone_repo.sh /opt/clone_repo.sh
+RUN chmod +x /opt/clone_repo.sh
+
+# Copy install_chromedriver.sh script and make it executable
 COPY install_chromedriver.sh /opt/install_chromedriver.sh
-COPY build_lightning_apps.sh /opt/build_lightning_apps.sh
-COPY setup_svs_tools.sh /opt/setup_svs_tools.sh
 
-RUN chmod +x /opt/*.sh \
- && /opt/clone_repo.sh  \
- && /opt/install_chromedriver.sh || true \
- && /opt/setup_svs_tools.sh || true \
- && /opt/build_lightning_apps.sh || true
+# Add the shell script as executable
+RUN chmod +x /opt/install_chromedriver.sh
 
+# Set working directory
+WORKDIR /opt
+
+# Run the clone script to build the application
+RUN /opt/clone_repo.sh
+
+# Run the ChromeDriver installation script
+RUN /opt/install_chromedriver.s || true
+
+# Create setenv.sh for Tomcat to pass environment variables
+RUN echo '#!/bin/bash' > /opt/tomcat/bin/setenv.sh && \
+    echo 'export CATALINA_OPTS="$CATALINA_OPTS $JAVA_OPTS"' >> /opt/tomcat/bin/setenv.sh && \
+    chmod +x /opt/tomcat/bin/setenv.sh
 
 # Copy Supervisor config
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -119,4 +128,3 @@ EXPOSE 8080
 
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-n"]
-

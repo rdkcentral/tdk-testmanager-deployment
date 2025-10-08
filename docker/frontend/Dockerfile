@@ -32,12 +32,12 @@ WORKDIR /app
 # Install Git and clone your Angular repo
 # Replace <YOUR_REPO_URL> with the actual URL of your Git repository
 RUN apk add --no-cache git && \
-    git clone "https://code.rdkcentral.com/r/rdk/tools/tdk" && \
-    cd tdk/ && git checkout feature-tdk-newui
+    git clone "https://github.com/rdkcentral/tdk-testmanager-frontend.git" && \
+    cd tdk-testmanager-frontend/ && git checkout develop
 
 
 # Set working directory to the Angular project inside the cloned repo
-WORKDIR /app/tdk/tdktestmanagerapp
+WORKDIR /app/tdk-testmanager-frontend
 
 # Substitute environment variables (used for dynamic Angular config setup)
 #RUN envsubst < src/app/utility/global-constants.template.ts > src/app/utility/global-constants.ts
@@ -45,7 +45,7 @@ WORKDIR /app/tdk/tdktestmanagerapp
 ARG API_URL
 
 # Replace the default 'localhost' URL with your dynamic backend URL
-RUN sed -i "s|http://localhost:8080/|${API_URL}|g" /app/tdk/tdktestmanagerapp/src/assets/config.json
+RUN sed -i "s|http://localhost:8080/|${API_URL}|g" /app/tdk-testmanager-frontend/src/assets/config.json
 # Install dependencies and build the Angular app
 RUN npm install --force && \
     npm run build
@@ -60,7 +60,7 @@ RUN rm -f /etc/nginx/conf.d/default.conf
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy built Angular app from builder stage to NGINX's web root
-COPY --from=builder /app/tdk/tdktestmanagerapp/dist/tdktest-manager-app/browser /var/www/html/
+COPY --from=builder /app/tdk-testmanager-frontend/dist/tdktest-manager-app/browser /var/www/html/
 
 # Set proper permissions (optional)
 RUN chmod -R 755 /var/www/html \
