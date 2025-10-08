@@ -131,14 +131,13 @@ chmod 655 database/init/tdk-master-data-dump.sql
 ### 5. Build and Start Services
 
 ```bash
-docker compose --env-file .env up -d --build
+docker compose build --no-cache && docker compose up -d
 ```
 
-This single command will:
-- Load environment variables from `.env` file
-- Build all Docker images
-- Start all services in detached mode
-- Create the complete application stack
+This  command will:
+- Build all Docker images defined in your docker-compose.yml file,  ensuring a fresh build by ignoring any cached layers (--no-cache).
+- Start all services defined in your docker-compose.yml file, running them in the detached mode (in the background, -d).
+- Create and start the complete application stack based on your configuration.
 
 ### 4. Verify Application Startup
 - **Frontend**: Open http://localhost:8443 or  http://{IP}:8443 in your browser, you will be able to see the login screen
