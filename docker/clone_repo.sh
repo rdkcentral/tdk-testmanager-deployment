@@ -21,7 +21,7 @@
 # Variables
 backendRepo="https://github.com/rdkcentral/tdk-testmanager-backend.git"
 coreRepo="https://github.com/rdkcentral/tdk-core.git"
-backendBranch="feature/RDKPREINTG-15550"
+backendBranch="develop"
 coreBranch="rdk-next"
 backendDir="tdk-testmanager-backend"
 coreDir="tdk-core"

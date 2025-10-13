@@ -26,13 +26,13 @@ Before running the application, ensure you have:
 
 #### Environment
 
-- **Ubuntu**: Version 24.X or higher is recommended
+- **Ubuntu**: Version 24.04 is recommended
 
 #### Softwares
 
 
-- **Docker Engine**: Version 28.1.X or higher
-- **Docker Compose**: Version 2.35.X or higher
+- **Docker Engine**: Version 28.1 is recommended
+- **Docker Compose**: Version 2.40.0 is recommended
 
 
 #### Installing Docker and Docker compose on Ubuntu
@@ -69,6 +69,25 @@ docker --version
 docker compose version
 ```
 
+If the docker compose version is less than the recommended one, Please follow the below steps to get the exact version
+
+```bash
+
+#Direct Download via Curl
+
+#Remove old Compose and create plugins directory:
+sudo apt remove docker-compose -y
+sudo mkdir -p /usr/libexec/docker/cli-plugins
+
+#Download and install:
+sudo curl -L "https://github.com/docker/compose/releases/download/v2.40.0/docker-compose-linux-x86_64" -o /usr/libexec/docker/cli-plugins/docker-compose
+sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
+
+#Verify: 
+docker compose version
+
+```
+
 
 ### Docker Architecture
 
@@ -96,28 +115,20 @@ cd tdk-testmanager-deployment/docker
 ```
 
 ### 3. Configure Environment Variables
+
+
 ```bash
 vi .env
 ```
 
-Edit`.env` file in the docker  directory:
+Edit the `.env` file in the docker directory:
 
-Add values for MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD and BACKEND_URL
+1. **Get your IP address**: Refer to the section [How to get IP of your ubuntu machine](#how-to-get-ip-of-your-ubuntu-machine) under Miscellaneous to get your IP.
 
-(PS : Please add MYSQL_ROOT_PASSWORD and MYSQL_PASSWORD as 'root' for now, as the parametrization of these are in progress in the backend container )
+2. **Update the BACKEND_URL**: Change backend URL from `http://localhost:8443/tdkservice/` to `http://{Your-IP}:8443/tdkservice/`
 
-Change backend URL from http://localhost:8080 to http://<IP>:8443/tdkservice/. 
 
-```env
-# Database Configuration
-MYSQL_ROOT_PASSWORD=
-MYSQL_DATABASE=tdktestmanagerproddb
-MYSQL_USER=tdktestuser
-MYSQL_PASSWORD=
 
-# Backend URL for Frontend
-BACKEND_URL=http://localhost:8080/
-```
 
 ### 4. Change the permission of dumpfile
 
@@ -126,7 +137,6 @@ BACKEND_URL=http://localhost:8080/
 chmod 655 database/init/tdk-master-data-dump.sql
 
 ```
-
 
 ### 5. Build and Start Services
 
@@ -140,11 +150,11 @@ This  command will:
 - Create and start the complete application stack based on your configuration.
 
 ### 4. Verify Application Startup
-- **Frontend**: Open http://localhost:8443 or  http://{IP}:8443 in your browser, you will be able to see the login screen
-- **Backend API**: The backend API is proxied behind nginx, So the app is available in 8443 port under path tdkservice
-  - http://localhost:8443/tdkservice - Main API endpoint
-  - http://localhost:8443/tdkservice/actuator/health / http://{IP}:8443/tdkservice/actuator/health - Use this endpoint to check if the app is up
 
+- **Frontend**: Open http://{IP}:8443 in your browser, you will be able to see the login screen
+
+- **Backend API**: The backend API is proxied behind nginx, So the app is available in 8443 port under path tdkservice.
+  - http://{IP}:8443/tdkservice/actuator/health - Use this endpoint to check if the app is up
 
 
 ### 5. Setup after Deployment
@@ -157,32 +167,25 @@ This  command will:
 docker ps -a
 ```
 
-#### Configure backend service URL in the front end service
+#### How to enter front end container
 
-1. Enter front end docker container with the below command
+Enter front end docker container with the below command
 
 ```Bash
 docker exec -it tdk-frontend bash
 ```
 
-2. Edit the config file to point to the backend URL. 
+#### How to enter mysql db container
 
-
-```Bash
-vi /var/www/html/assets/config.json
-```
-
-3. Replace the URL with http://<IP of your ubuntu VM>:8443/tdkservice. 
+Enter front end docker container with the below command
 
 ```Bash
-  {
-    "apiUrl": "http://<IP>:8443/tdkservice/",
-    "nodeApiUrl":""
-  }
-
+docker exec -it mysql-db bash
 ```
 
-#### Configure backend service URL in the backend config and copy the fileStore(Copying the fileStore is a temporary step, it will be automated by Oct 25)
+
+
+#### Configure backend service URL in the backend config and copy the fileStore(Copying the fileStore is a temporary step, it will be automated by October 2025 after the scripts and core open sourcing )
 
 
 1. Copy the fileStore.zip share by the TDK tools team to your ubuntu VM
@@ -190,7 +193,9 @@ vi /var/www/html/assets/config.json
 2. Copy the fileStore.zip to the backend docker container
 
 ```Bash
-docker cp /home/ajayan524/fileStore.zip tdk-backend:/mnt
+docker cp {source} tdk-backend:/mnt
+
+#eg : docker cp /home/ajayan524/fileStore.zip tdk-backend:/mnt
 ```
 
 3. Enter backend end docker container with the below command
@@ -220,7 +225,7 @@ vi /opt/tomcat/webapps/tdkservice/fileStore/tm.config
 6. Replace the tm URL value with your app URL
 
 ```Bash
-tmURL=http://<IP>:8443/tdkservice/
+tmURL=http://{IP}:8443/tdkservice/
 ```
 
 The app should be ready to use now
@@ -250,7 +255,7 @@ Restart tomcat
 supervisorctl restart tomcat
 ```
 
-#### Start and stop tomcat in backend container
+#### Start and stop nginx in frontend container
 
 Restart nginx
 
@@ -258,6 +263,29 @@ Restart nginx
 nginx -s reload
 
 ````
+
+
+
+#### How to get IP of your ubuntu machine
+
+**For same network access:**
+```bash
+# If you are going to access the test manager from the same network,
+# run the below command to get your local IP
+ifconfig
+
+# Take IP address assigned to your VM's eth0 network interface
+# Example output:
+# eth0      Link encap:Ethernet  HWaddr D4:CF:F9:49:E8:C9
+#           inet addr:192.168.162.65  Bcast:192.168.162.255  Mask:255.255.255.0
+```
+
+**For external network access:**
+```bash
+# If you are going to access the test manager from another network, 
+# get the public IP by running the below command
+curl ifconfig.me
+```
 
 
 
