@@ -1,8 +1,6 @@
-version: '3.8'
-
 services:
   mysql-db:
-    image: mysql:8.4
+    image: mysql:8.4 
     container_name: mysql-db
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
@@ -13,6 +11,7 @@ services:
       - "3306:3306"
     volumes:
       - mysql-data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
     networks:
       - tdk-net
 
@@ -25,13 +24,6 @@ services:
       - mysql-db
     ports:
       - "8080:8080"
-      - "8089:8089"
-    environment:
-      SPRING_DATASOURCE_URL: ${SPRING_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${SPRING_DATASOURCE_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${SPRING_DATASOURCE_PASSWORD}
-    volumes:
-      - ./backend-data:/opt/tomcat/webapps
     networks:
       - tdk-net
 
@@ -44,11 +36,8 @@ services:
     container_name: tdk-frontend
     ports:
       - "8443:8443"  # nginx exposes Angular here
- # Volume for frontend HTML output
     environment:
       BACKEND_URL: ${BACKEND_URL}  # Optional, for reference
-    volumes:
-      - /tmp/dockerfiles/ssl_2025:/mnt/ssl_2025:ro
     networks:
       - tdk-net
 
@@ -57,4 +46,3 @@ volumes:
 
 networks:
   tdk-net:
-
