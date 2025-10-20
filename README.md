@@ -130,11 +130,16 @@ Edit the `.env` file in the docker directory:
 
 
 
-### 4. Change the permission of dumpfile
+### 4. Change the permission of dumpfile and folder
 
 ```env
 
-chmod 655 database/init/tdk-master-data-dump.sql
+# Fix directory permissions
+chmod 755 database/
+chmod 755 database/init/
+
+# Fix file permissions
+chmod 644 database/init/tdk-master-data-dump.sql
 
 ```
 
