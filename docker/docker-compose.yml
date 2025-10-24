@@ -26,8 +26,11 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    environment:
+      - RELEASE_REFERENCE=${RELEASE_REFERENCE}
     volumes:
       - backend-webapps:/opt/tomcat/webapps
+      - ./.env:/opt/.env:ro
     networks:
       - tdk-net
 

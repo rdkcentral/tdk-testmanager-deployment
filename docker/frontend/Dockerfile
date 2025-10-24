@@ -43,12 +43,38 @@ WORKDIR /app/tdk-testmanager-frontend
 #RUN envsubst < src/app/utility/global-constants.template.ts > src/app/utility/global-constants.ts
 # Define build-time argument
 ARG API_URL
-
+ARG RELEASE_REFERENCE
 # Replace the default 'localhost' URL with your dynamic backend URL
 RUN sed -i "s|http://localhost:8080/|${API_URL}|g" /app/tdk-testmanager-frontend/src/assets/config.json
 # Install dependencies and build the Angular app
 RUN npm install --force && \
     npm run build
+
+
+# ---------- Stage 2: Node Binary Builder ----------
+FROM node:18-alpine AS nodebuilder
+
+WORKDIR /nodeapp
+
+RUN apk add --no-cache git python3 make g++ \
+    && npm install -g pkg
+
+# Clone your deployment repo
+RUN git clone "https://github.com/rdkcentral/tdk-testmanager-deployment.git"
+
+# Switch to develop branch first, then navigate to the directory
+RUN cd tdk-testmanager-deployment && git checkout develop
+
+# Move into nodeapp
+WORKDIR /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp
+
+# Install dependencies
+RUN npm install --force
+
+# Build Node binary for Alpine Linux
+RUN pkg . --targets node18-alpine-x64 --output my-node-api
+
+
 # ----------- Stage 2: Serve using NGINX ------------
 FROM nginx:1.28.0-alpine
 
@@ -66,9 +92,17 @@ COPY --from=builder /app/tdk-testmanager-frontend/dist/tdktest-manager-app/brows
 RUN chmod -R 755 /var/www/html \
     && chown -R nginx:nginx /var/www/html
 
-# Expose the NGINX port
-EXPOSE 8443
+# Copy binary + deploy script from node build stage
+COPY --from=nodebuilder /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/my-node-api /
+COPY --from=nodebuilder /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/deploy.sh /
 
-# Start NGINX in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+# Give execute permission
+RUN chmod +x /my-node-api /deploy.sh
+
+# Expose ports for both services
+EXPOSE 8443 3000
+
+# Start Node binary in background, then start NGINX
+CMD /my-node-api & nginx -g 'daemon off;'
+
 

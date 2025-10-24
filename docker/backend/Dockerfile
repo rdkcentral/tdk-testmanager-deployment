@@ -100,6 +100,9 @@ RUN chmod +x $CATALINA_HOME/bin/*.sh
 COPY clone_repo.sh /opt/clone_repo.sh
 RUN chmod +x /opt/clone_repo.sh
 
+# Copy environment configuration
+COPY .env /opt/.env
+
 # Copy install_chromedriver.sh script and make it executable
 COPY install_chromedriver.sh /opt/install_chromedriver.sh
 
@@ -128,3 +131,4 @@ EXPOSE 8080
 
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-n"]
+
