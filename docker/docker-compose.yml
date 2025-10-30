@@ -19,6 +19,8 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        RELEASE_BRANCH: ${RELEASE_REFERENCE:-develop}
     container_name: tdk-backend
     depends_on:
       - mysql-db
@@ -37,6 +39,7 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         API_URL: ${BACKEND_URL}  # Passed at build time using sed
+        RELEASE_BRANCH: ${RELEASE_REFERENCE:-develop}
     container_name: tdk-frontend
     ports:
       - "8443:8443"  # nginx exposes Angular here
@@ -53,3 +56,4 @@ volumes:
   frontend-html:
 networks:
   tdk-net:
+

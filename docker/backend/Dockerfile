@@ -18,6 +18,9 @@
 ##########################################################################
 FROM ubuntu:24.04
 
+# Build argument for branch name
+ARG RELEASE_BRANCH=develop
+
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -109,8 +112,28 @@ RUN chmod +x /opt/install_chromedriver.sh
 # Set working directory
 WORKDIR /opt
 
-# Run the clone script to build the application
-RUN /opt/clone_repo.sh
+# Debug: Show what RELEASE_BRANCH value we received
+RUN echo "=== BACKEND DOCKERFILE DEBUG ===" && \
+    echo "RELEASE_BRANCH build arg value: '${RELEASE_BRANCH}'" && \
+    echo "================================"
+# Debug: Show what RELEASE_BRANCH value we received
+RUN echo "=== BACKEND DOCKERFILE DEBUG ===" && \
+    echo "RELEASE_BRANCH build arg value: '${RELEASE_BRANCH}'" && \
+    echo "Length of RELEASE_BRANCH: ${#RELEASE_BRANCH}" && \
+    echo "RELEASE_BRANCH hex dump:" && \
+    echo -n "${RELEASE_BRANCH}" | xxd && \
+    echo "================================"
+
+# Debug: Show exactly what we're passing to the script
+RUN echo "=== CLONE SCRIPT EXECUTION DEBUG ===" && \
+    echo "About to execute: /opt/clone_repo.sh '${RELEASE_BRANCH}'" && \
+    echo "Arguments that will be passed:" && \
+    echo "Arg 1: '${RELEASE_BRANCH}'" && \
+    echo "======================================"
+
+RUN /opt/clone_repo.sh "${RELEASE_BRANCH}"
+# Run the clone script to build the application with branch parameter
+#RUN /opt/clone_repo.sh ${RELEASE_BRANCH}
 
 # Run the ChromeDriver installation script
 RUN /opt/install_chromedriver.s || true
@@ -128,3 +151,4 @@ EXPOSE 8080
 
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-n"]
+

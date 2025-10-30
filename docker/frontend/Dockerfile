@@ -19,6 +19,14 @@
 # ----------- Stage 1: Build Angular App ------------
 FROM node:22.15.0-alpine AS builder
 
+# Build argument for branch name
+ARG RELEASE_BRANCH=develop
+
+# Debug: Show what RELEASE_BRANCH value we received in Stage 1
+RUN echo "=== FRONTEND DOCKERFILE STAGE 1 DEBUG ===" && \
+    echo "RELEASE_BRANCH build arg value: '${RELEASE_BRANCH}'" && \
+    echo "========================================"
+
 # Set environment variables
 ENV ANGULAR_CLI_VERSION=17.3.10
 
@@ -33,7 +41,7 @@ WORKDIR /app
 # Replace <YOUR_REPO_URL> with the actual URL of your Git repository
 RUN apk add --no-cache git && \
     git clone "https://github.com/rdkcentral/tdk-testmanager-frontend.git" && \
-    cd tdk-testmanager-frontend/ && git checkout develop
+    cd tdk-testmanager-frontend/ && git checkout ${RELEASE_BRANCH}
 
 
 # Set working directory to the Angular project inside the cloned repo
@@ -49,6 +57,34 @@ RUN sed -i "s|http://localhost:8080/|${API_URL}|g" /app/tdk-testmanager-frontend
 # Install dependencies and build the Angular app
 RUN npm install --force && \
     npm run build
+
+
+# ---------- Stage 2: Node Binary Builder ----------
+FROM node:18-alpine AS nodebuilder
+
+# Build argument for branch name (needs to be redeclared in each stage)
+ARG RELEASE_BRANCH=develop
+
+WORKDIR /nodeapp
+
+RUN apk add --no-cache git python3 make g++ \
+    && npm install -g pkg
+
+# Clone your deployment repo
+RUN git clone "https://github.com/rdkcentral/tdk-testmanager-deployment.git"
+
+# Switch to the specified branch, then navigate to the directory
+RUN cd tdk-testmanager-deployment && git checkout ${RELEASE_BRANCH}
+
+# Move into nodeapp
+WORKDIR /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp
+
+# Install dependencies
+RUN npm install --force
+
+# Build Node binary for Alpine Linux
+RUN pkg . --targets node18-alpine-x64 --output my-node-api
+
 # ----------- Stage 2: Serve using NGINX ------------
 FROM nginx:1.28.0-alpine
 
@@ -66,9 +102,17 @@ COPY --from=builder /app/tdk-testmanager-frontend/dist/tdktest-manager-app/brows
 RUN chmod -R 755 /var/www/html \
     && chown -R nginx:nginx /var/www/html
 
-# Expose the NGINX port
-EXPOSE 8443
+# Copy binary + deploy script from node build stage
+COPY --from=nodebuilder /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/my-node-api /
+COPY --from=nodebuilder /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/deploy.sh /
 
-# Start NGINX in the foreground
-CMD ["nginx", "-g", "daemon off;"]
+# Give execute permission
+RUN chmod +x /my-node-api /deploy.sh
+
+# Expose the NGINX port
+EXPOSE 8443 3000
+
+# Start Node binary in background, then start NGINX
+CMD /my-node-api & nginx -g 'daemon off;'
+
 
