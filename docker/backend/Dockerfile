@@ -20,6 +20,7 @@ FROM ubuntu:24.04
 
 # Build argument for branch name
 ARG RELEASE_BRANCH=develop
+# Note: 'develop' is the default branch name if not set from environment variable
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -111,25 +112,6 @@ RUN chmod +x /opt/install_chromedriver.sh
 
 # Set working directory
 WORKDIR /opt
-
-# Debug: Show what RELEASE_BRANCH value we received
-RUN echo "=== BACKEND DOCKERFILE DEBUG ===" && \
-    echo "RELEASE_BRANCH build arg value: '${RELEASE_BRANCH}'" && \
-    echo "================================"
-# Debug: Show what RELEASE_BRANCH value we received
-RUN echo "=== BACKEND DOCKERFILE DEBUG ===" && \
-    echo "RELEASE_BRANCH build arg value: '${RELEASE_BRANCH}'" && \
-    echo "Length of RELEASE_BRANCH: ${#RELEASE_BRANCH}" && \
-    echo "RELEASE_BRANCH hex dump:" && \
-    echo -n "${RELEASE_BRANCH}" | xxd && \
-    echo "================================"
-
-# Debug: Show exactly what we're passing to the script
-RUN echo "=== CLONE SCRIPT EXECUTION DEBUG ===" && \
-    echo "About to execute: /opt/clone_repo.sh '${RELEASE_BRANCH}'" && \
-    echo "Arguments that will be passed:" && \
-    echo "Arg 1: '${RELEASE_BRANCH}'" && \
-    echo "======================================"
 
 RUN /opt/clone_repo.sh "${RELEASE_BRANCH}"
 # Run the clone script to build the application with branch parameter

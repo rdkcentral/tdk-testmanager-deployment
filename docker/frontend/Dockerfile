@@ -21,11 +21,7 @@ FROM node:22.15.0-alpine AS builder
 
 # Build argument for branch name
 ARG RELEASE_BRANCH=develop
-
-# Debug: Show what RELEASE_BRANCH value we received in Stage 1
-RUN echo "=== FRONTEND DOCKERFILE STAGE 1 DEBUG ===" && \
-    echo "RELEASE_BRANCH build arg value: '${RELEASE_BRANCH}'" && \
-    echo "========================================"
+# Note: 'develop' is the default branch name if not set from environment variable
 
 # Set environment variables
 ENV ANGULAR_CLI_VERSION=17.3.10
@@ -64,6 +60,7 @@ FROM node:18-alpine AS nodebuilder
 
 # Build argument for branch name (needs to be redeclared in each stage)
 ARG RELEASE_BRANCH=develop
+# Note: 'develop' is the default branch name if not set from environment variable
 
 WORKDIR /nodeapp
 

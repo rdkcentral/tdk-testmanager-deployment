@@ -19,11 +19,7 @@
 ##########################################################################
 
 # Variables - use command line argument first, then RELEASE_REFERENCE from env file, fallback to defaults
-echo "=== CLONE SCRIPT START DEBUG ==="
-echo "Total arguments received: $#"
-echo "All arguments: $@"
-echo "Argument 1: '$1'"
-echo "==============================="
+echo "=== CLONE SCRIPT START ==="
 
 # If command line argument provided, use it directly (Docker execution)
 if [ -n "$1" ]; then
@@ -43,9 +39,7 @@ else
     fi
 fi
 
-echo "=== DEBUG INFO ==="
 echo "Final RELEASE_BRANCH: '$RELEASE_BRANCH'"
-echo "=================="
 
 backendRepo="https://github.com/rdkcentral/tdk-testmanager-backend.git"
 coreRepo="https://github.com/rdkcentral/tdk-core.git"
