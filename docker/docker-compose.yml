@@ -19,15 +19,15 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        RELEASE_BRANCH: ${RELEASE_REFERENCE:-develop}
     container_name: tdk-backend
     depends_on:
       - mysql-db
     ports:
       - "8080:8080"
     env_file:
-      - .env
-    volumes:
-      - backend-webapps:/opt/tomcat/webapps
+      - .env   
     networks:
       - tdk-net
 
@@ -37,19 +37,18 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         API_URL: ${BACKEND_URL}  # Passed at build time using sed
+        RELEASE_BRANCH: ${RELEASE_REFERENCE:-develop}
     container_name: tdk-frontend
     ports:
       - "8443:8443"  # nginx exposes Angular here
     environment:
-      BACKEND_URL: ${BACKEND_URL}  # Optional, for reference
-    volumes:
-      - frontend-html:/var/www/html
+      BACKEND_URL: ${BACKEND_URL}  # Optional, for reference:   
     networks:
       - tdk-net
 
 volumes:
   mysql-data:
-  backend-webapps:
-  frontend-html:
+ 
 networks:
   tdk-net:
+
