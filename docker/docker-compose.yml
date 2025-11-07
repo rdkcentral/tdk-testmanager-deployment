@@ -27,9 +27,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - .env
-    volumes:
-      - backend-webapps:/opt/tomcat/webapps
+      - .env   
     networks:
       - tdk-net
 
@@ -44,9 +42,7 @@ services:
     ports:
       - "8443:8443"  # nginx exposes Angular here
     environment:
-      BACKEND_URL: ${BACKEND_URL}  # Optional, for reference
-    volumes:
-      - frontend-html:/var/www/html
+      BACKEND_URL: ${BACKEND_URL}  # Optional, for reference:   
     networks:
       - tdk-net
 

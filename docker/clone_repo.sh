@@ -85,7 +85,7 @@ git clone -b "$RELEASE_BRANCH" "$deploymentRepo" || {
 
 # Copy fileStore from core to backend
 echo "Copying fileStore from core to backend..."
-cp -r "$coreDir/framework/web-app/fileStore" "$backendDir/src/main/webapp/"
+cp -r "$coreDir/framework/fileStore" "$backendDir/src/main/webapp/"
 
 # Create testscriptsRDKB folder in fileStore
 echo "Creating testscriptsRDKB directory..."
@@ -103,7 +103,7 @@ fi
 # Copy integration folder from core to testscriptsRDKB
 echo "Copying integration folder from core repo..."
 if [ -d "$coreDir/framework/web-app/fileStore/testscriptsRDKBAdvanced/integration" ]; then
-    cp -r "$coreDir/framework/web-app/fileStore/testscriptsRDKBAdvanced/integration" "$backendDir/src/main/webapp/fileStore/testscriptsRDKB/"
+    cp -r "$coreDir/framework/fileStore/testscriptsRDKBAdvanced/integration" "$backendDir/src/main/webapp/fileStore/testscriptsRDKB/"
     echo "Integration folder copied successfully."
 else
     echo "Warning: Integration folder not found in core repo."
