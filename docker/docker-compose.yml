@@ -1,0 +1,54 @@
+services:
+  mysql-db:
+    image: mysql:8.4 
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - tdk-net
+
+  tdk-backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        RELEASE_BRANCH: ${RELEASE_REFERENCE:-develop}
+    container_name: tdk-backend
+    depends_on:
+      - mysql-db
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env   
+    networks:
+      - tdk-net
+
+  tdk-frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        API_URL: ${BACKEND_URL}  # Passed at build time using sed
+        RELEASE_BRANCH: ${RELEASE_REFERENCE:-develop}
+    container_name: tdk-frontend
+    ports:
+      - "8443:8443"  # nginx exposes Angular here
+    environment:
+      BACKEND_URL: ${BACKEND_URL}  # Optional, for reference:   
+    networks:
+      - tdk-net
+
+volumes:
+  mysql-data:
+ 
+networks:
+  tdk-net:
+

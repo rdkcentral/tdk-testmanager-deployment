@@ -1,0 +1,15 @@
+{
+  "name": "my-node-api",
+  "version": "1.0.0",
+  "description": "Upload and deploy tool",
+  "main": "server.js",
+  "bin": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "2.0.2"
+  }
+}
+
