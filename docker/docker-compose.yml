@@ -48,8 +48,7 @@ services:
 
 volumes:
   mysql-data:
-  backend-webapps:
-  frontend-html:
+ 
 networks:
   tdk-net:
 
