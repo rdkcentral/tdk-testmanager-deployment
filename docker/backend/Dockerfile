@@ -18,6 +18,10 @@
 ##########################################################################
 FROM ubuntu:24.04
 
+# Build argument for branch name
+ARG RELEASE_BRANCH=develop
+# Note: 'develop' is the default branch name if not set from environment variable
+
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=Etc/UTC
@@ -109,8 +113,9 @@ RUN chmod +x /opt/install_chromedriver.sh
 # Set working directory
 WORKDIR /opt
 
-# Run the clone script to build the application
-RUN /opt/clone_repo.sh
+RUN /opt/clone_repo.sh "${RELEASE_BRANCH}"
+# Run the clone script to build the application with branch parameter
+#RUN /opt/clone_repo.sh ${RELEASE_BRANCH}
 
 # Run the ChromeDriver installation script
 RUN /opt/install_chromedriver.s || true
@@ -128,3 +133,4 @@ EXPOSE 8080
 
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-n"]
+

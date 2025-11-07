@@ -110,8 +110,17 @@ sudo su
 ### 2. Clone this Repository
 
 ```bash
-git clone <repository-url>
-cd tdk-testmanager-deployment/docker
+git clone https://github.com/rdkcentral/tdk-testmanager-deployment.git
+cd tdk-testmanager-deployment
+
+```
+If you want to deploy a particular release tag, then checkout that using the below step
+
+```bash
+git checkout <Release tag>
+
+cd docker
+
 ```
 
 ### 3. Configure Environment Variables
