@@ -300,7 +300,7 @@ ifconfig
 # get the public IP by running the below command
 curl ifconfig.me
 ```
-## 🧱 Volumes Usage
+## Volumes Usage
 
 We use Docker volumes in the `docker-compose.yml` file to persist data and files across container restarts and rebuilds.
 
@@ -311,13 +311,13 @@ volumes:
   frontend-html:
 ```
 
-### 🔍 Purpose
+### Purpose
 
 * **`mysql-data`** → Stores MySQL database data so it remains intact even after container rebuilds.
 * **`backend-webapps`** → Keeps backend build artifacts, logs, and configuration files persistent.
 * **`frontend-html`** → Stores built frontend files (HTML, CSS, JS) used by Nginx.
 
-### ⚙️ Behavior
+### Behavior
 
 * During the **initial setup**, these volumes are automatically created when running:
 
@@ -327,14 +327,14 @@ volumes:
 * Once created, Docker automatically reuses the existing volume data during future builds or image recreations.
 * This ensures that any database data or generated files remain available even after rebuilding containers.
 
-### ✅ Benefits
+### Benefits
 
 * Data persists across rebuilds and restarts.
 * Faster development setup — no need to reimport or rebuild.
 * Safe updates without losing existing files or configurations.
 * Makes containers behave more like long-lived environments.
 
-### ⚠️ To Reset Volumes
+### To Reset Volumes
 
 If you need to start fresh and remove stored data:
 
