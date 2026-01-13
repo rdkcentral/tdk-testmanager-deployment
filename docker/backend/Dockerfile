@@ -76,7 +76,8 @@ RUN pip install --no-cache-dir pip==25.1.1 \
     paramiko==3.4.0 \
     gevent==23.9.1 \
     opencv-python==4.9.0.80 \
-    pytesseract==0.3.10
+    pytesseract==0.3.10 \
+    setuptools==80.9.0
 
 #  Install Maven
 ENV MAVEN_VERSION=3.9.9

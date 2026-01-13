@@ -102,7 +102,7 @@ fi
 
 # Copy integration folder from core to testscriptsRDKB
 echo "Copying integration folder from core repo..."
-if [ -d "$coreDir/framework/web-app/fileStore/testscriptsRDKBAdvanced/integration" ]; then
+if [ -d "$coreDir/framework/fileStore/testscriptsRDKBAdvanced/integration" ]; then
     cp -r "$coreDir/framework/fileStore/testscriptsRDKBAdvanced/integration" "$backendDir/src/main/webapp/fileStore/testscriptsRDKB/"
     echo "Integration folder copied successfully."
 else
