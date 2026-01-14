@@ -37,7 +37,7 @@ WORKDIR /app
 # Replace <YOUR_REPO_URL> with the actual URL of your Git repository
 RUN apk add --no-cache git && \
     git clone "https://github.com/rdkcentral/tdk-testmanager-frontend.git" && \
-    cd tdk-testmanager-frontend/ && git checkout ${RELEASE_BRANCH}
+    cd tdk-testmanager-frontend/ && git checkout develop
 
 
 # Set working directory to the Angular project inside the cloned repo

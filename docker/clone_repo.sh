@@ -123,6 +123,20 @@ else
 fi
 
 
+# Modify application.properties BEFORE building WAR
+echo "Modifying application.properties with environment variables..."
+PROPS_FILE="$backendDir/src/main/resources/application.properties"
+if [ -f "$PROPS_FILE" ]; then
+    sed -i "s|\${DATASOURCE_URL}|${DATASOURCE_URL}|g" "$PROPS_FILE"
+    sed -i "s|\${DATASOURCE_USERNAME}|${DATASOURCE_USERNAME}|g" "$PROPS_FILE"
+    sed -i "s|\${DATASOURCE_PASSWORD}|${DATASOURCE_PASSWORD}|g" "$PROPS_FILE"
+    sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$PROPS_FILE"
+    echo "application.properties modified successfully."
+else
+    echo "Warning: application.properties not found at $PROPS_FILE"
+fi
+
+
 # Build WAR file using Maven
 echo "Building WAR file with Maven..."
 cd "$backendDir"
