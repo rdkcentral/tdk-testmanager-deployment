@@ -21,27 +21,9 @@
 # Variables - use command line argument first, then RELEASE_TAG from env file, fallback to defaults
 echo "=== CLONE SCRIPT START ==="
 
-# If command line argument provided, use it directly (Docker execution)
-if [ -n "$1" ]; then
-    RELEASE_TAG="$1"
-    echo "Using command line argument: '$RELEASE_TAG'"
-else
-    # No command line argument, try to load from .env file (manual execution)
-    echo "No command line argument provided, checking for .env file..."
-    if [ -f ".env" ]; then
-        echo "Loading .env file..."
-        RELEASE_TAG=${RELEASE_TAG:-"develop"}
-        echo "Using RELEASE_TAG from .env: '$RELEASE_TAG'"
-    else
-        RELEASE_TAG="develop"
-        echo "No .env file found, using default: '$RELEASE_TAG'"
-    fi
-fi
 
-echo "Final RELEASE_TAG: '$RELEASE_TAG'"
-
-# Export all variables from .env file
-export DATASOURCE_URL DATASOURCE_USERNAME DATASOURCE_PASSWORD JWT_SECRET BACKEND_URL
+# Export all variables from .env file for replacement in application.properties and tm.config
+export DATASOURCE_URL DATASOURCE_USERNAME DATASOURCE_PASSWORD JWT_SECRET BACKEND_URL RELEASE_TAG
 
 # Load additional variables from environment or .env
 DATASOURCE_URL=${DATASOURCE_URL}
@@ -49,6 +31,7 @@ DATASOURCE_USERNAME=${DATASOURCE_USERNAME}
 DATASOURCE_PASSWORD=${DATASOURCE_PASSWORD}
 JWT_SECRET=${JWT_SECRET}
 BACKEND_URL=${BACKEND_URL}
+RELEASE_TAG=${RELEASE_TAG:-"develop"}
 
 
 # Display loaded variables
@@ -57,6 +40,28 @@ echo "DATASOURCE_USERNAME: $DATASOURCE_USERNAME"
 echo "DATASOURCE_PASSWORD: $DATASOURCE_PASSWORD"
 echo "JWT_SECRET: $JWT_SECRET"
 echo "BACKEND_URL: $BACKEND_URL"
+
+
+# If command line argument provided, use it directly (Docker execution)
+# if [ -n "$1" ]; then
+#     RELEASE_TAG="$1"
+#     echo "Using command line argument: '$RELEASE_TAG'"
+# else
+#     # No command line argument, try to load from .env file (manual execution)
+#     echo "No command line argument provided, checking for .env file..."
+#     if [ -f ".env" ]; then
+#         echo "Loading .env file..."
+#         RELEASE_TAG=${RELEASE_TAG:-"develop"}
+#         echo "Using RELEASE_TAG from .env: '$RELEASE_TAG'"
+#     else
+#         RELEASE_TAG="develop"
+#         echo "No .env file found, using default: '$RELEASE_TAG'"
+#     fi
+# fi
+
+echo "Final RELEASE_TAG: '$RELEASE_TAG'"
+
+
 
 
 
