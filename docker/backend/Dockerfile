@@ -19,7 +19,7 @@
 FROM ubuntu:24.04
 
 # Build argument for branch name
-ARG RELEASE_BRANCH=develop
+ARG RELEASE_TAG=develop
 # Note: 'develop' is the default branch name if not set from environment variable
 
 # Set environment variables
@@ -114,9 +114,9 @@ RUN chmod +x /opt/install_chromedriver.sh
 # Set working directory
 WORKDIR /opt
 
-RUN /opt/clone_repo.sh "${RELEASE_BRANCH}"
+RUN /opt/clone_repo.sh "${RELEASE_TAG}"
 # Run the clone script to build the application with branch parameter
-#RUN /opt/clone_repo.sh ${RELEASE_BRANCH}
+#RUN /opt/clone_repo.sh ${RELEASE_TAG}
 
 # Run the ChromeDriver installation script
 RUN /opt/install_chromedriver.s || true

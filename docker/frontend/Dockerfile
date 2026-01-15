@@ -20,7 +20,7 @@
 FROM node:22.15.0-alpine AS builder
 
 # Build argument for branch name
-ARG RELEASE_BRANCH=develop
+ARG RELEASE_TAG=develop
 # Note: 'develop' is the default branch name if not set from environment variable
 
 # Set environment variables
@@ -59,7 +59,7 @@ RUN npm install --force && \
 FROM node:18-alpine AS nodebuilder
 
 # Build argument for branch name (needs to be redeclared in each stage)
-ARG RELEASE_BRANCH=develop
+ARG RELEASE_TAG=develop
 # Note: 'develop' is the default branch name if not set from environment variable
 
 WORKDIR /nodeapp
@@ -71,7 +71,7 @@ RUN apk add --no-cache git python3 make g++ \
 RUN git clone "https://github.com/rdkcentral/tdk-testmanager-deployment.git"
 
 # Switch to the specified branch, then navigate to the directory
-RUN cd tdk-testmanager-deployment && git checkout ${RELEASE_BRANCH}
+RUN cd tdk-testmanager-deployment && git checkout ${RELEASE_TAG}
 
 # Move into nodeapp
 WORKDIR /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp
