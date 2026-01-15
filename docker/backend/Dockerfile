@@ -20,6 +20,11 @@ FROM ubuntu:24.04
 
 # Build argument for branch name
 ARG RELEASE_TAG=develop
+ARG DATASOURCE_URL
+ARG DATASOURCE_USERNAME
+ARG DATASOURCE_PASSWORD
+ARG BACKEND_URL
+ARG JWT_SECRET  
 # Note: 'develop' is the default branch name if not set from environment variable
 
 # Set environment variables
@@ -114,7 +119,7 @@ RUN chmod +x /opt/install_chromedriver.sh
 # Set working directory
 WORKDIR /opt
 
-RUN /opt/clone_repo.sh "${RELEASE_TAG}"
+RUN /opt/clone_repo.sh "${RELEASE_TAG}" "${DATASOURCE_URL}" "${DATASOURCE_USERNAME}" "${DATASOURCE_PASSWORD}" "${BACKEND_URL}" "${JWT_SECRET}"
 # Run the clone script to build the application with branch parameter
 #RUN /opt/clone_repo.sh ${RELEASE_TAG}
 

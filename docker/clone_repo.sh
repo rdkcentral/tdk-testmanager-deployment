@@ -22,42 +22,37 @@
 echo "=== CLONE SCRIPT START ==="
 
 
-# Export all variables from .env file for replacement in application.properties and tm.config
-export DATASOURCE_URL DATASOURCE_USERNAME DATASOURCE_PASSWORD JWT_SECRET BACKEND_URL RELEASE_TAG
+DATASOURCE_URL="${2}"
+DATASOURCE_USERNAME="${3}"
+DATASOURCE_PASSWORD="${4}"
+BACKEND_URL="${5}"
+JWT_SECRET="${6}"
 
-# Load additional variables from environment or .env
-DATASOURCE_URL=${DATASOURCE_URL}
-DATASOURCE_USERNAME=${DATASOURCE_USERNAME}
-DATASOURCE_PASSWORD=${DATASOURCE_PASSWORD}
-JWT_SECRET=${JWT_SECRET}
-BACKEND_URL=${BACKEND_URL}
-RELEASE_TAG=${RELEASE_TAG:-"develop"}
-
-
-# Display loaded variables
-echo "DATASOURCE_URL: $DATASOURCE_URL"
-echo "DATASOURCE_USERNAME: $DATASOURCE_USERNAME"
-echo "DATASOURCE_PASSWORD: $DATASOURCE_PASSWORD"
-echo "JWT_SECRET: $JWT_SECRET"
-echo "BACKEND_URL: $BACKEND_URL"
-
+echo "Received parameters:"
+echo "DATASOURCE_URL: '$DATASOURCE_URL'"
+echo "DATASOURCE_USERNAME: '$DATASOURCE_USERNAME'"
+echo "DATASOURCE_PASSWORD: '$DATASOURCE_PASSWORD'"
+echo "BACKEND_URL: '$BACKEND_URL'"
+echo "JWT_SECRET:   '$JWT_SECRET'"
 
 # If command line argument provided, use it directly (Docker execution)
-# if [ -n "$1" ]; then
-#     RELEASE_TAG="$1"
-#     echo "Using command line argument: '$RELEASE_TAG'"
-# else
-#     # No command line argument, try to load from .env file (manual execution)
-#     echo "No command line argument provided, checking for .env file..."
-#     if [ -f ".env" ]; then
-#         echo "Loading .env file..."
-#         RELEASE_TAG=${RELEASE_TAG:-"develop"}
-#         echo "Using RELEASE_TAG from .env: '$RELEASE_TAG'"
-#     else
-#         RELEASE_TAG="develop"
-#         echo "No .env file found, using default: '$RELEASE_TAG'"
-#     fi
-# fi
+if [ -n "$1" ]; then
+    RELEASE_BRANCH="$1"
+    echo "Using command line argument: '$RELEASE_BRANCH'"
+else
+    # No command line argument, try to load from .env file (manual execution)
+    echo "No command line argument provided, checking for .env file..."
+    if [ -f ".env" ]; then
+        echo "Loading .env file..."
+        export $(grep -v '^#' .env | xargs)
+        RELEASE_BRANCH=${RELEASE_REFERENCE:-"develop"}
+        echo "Using RELEASE_REFERENCE from .env: '$RELEASE_BRANCH'"
+    else
+        RELEASE_BRANCH="develop"
+        echo "No .env file found, using default: '$RELEASE_BRANCH'"
+    fi
+fi
+
 
 echo "Final RELEASE_TAG: '$RELEASE_TAG'"
 
