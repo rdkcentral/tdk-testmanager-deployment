@@ -39,6 +39,22 @@ else
     fi
 fi
 
+
+# Load additional variables from environment or .env
+DATASOURCE_URL=${DATASOURCE_URL:-"jdbc:mysql://mysql-db:3306/tdktestmanagerproddb?createDatabaseIfNotExist=true&autoReconnect=true&allowPublicKeyRetrieval=true&useSSL=false"}
+DATASOURCE_USERNAME=${DATASOURCE_USERNAME:-"root"}
+DATASOURCE_PASSWORD=${DATASOURCE_PASSWORD:-"root"}
+JWT_SECRET=${JWT_SECRET:?ERROR: JWT_SECRET is not set}
+BACKEND_URL=${BACKEND_URL:-"http://localhost:8080/tdkservice"}
+
+# Display loaded variables
+echo "DATASOURCE_URL: $DATASOURCE_URL"
+echo "DATASOURCE_USERNAME: $DATASOURCE_USERNAME"
+echo "DATASOURCE_PASSWORD: $DATASOURCE_PASSWORD"
+echo "JWT_SECRET: $JWT_SECRET"
+echo "BACKEND_URL: $BACKEND_URL"
+
+
 echo "Final RELEASE_TAG: '$RELEASE_TAG'"
 
 backendRepo="https://github.com/rdkcentral/tdk-testmanager-backend.git"
