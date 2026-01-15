@@ -85,7 +85,12 @@ git clone -b "$RELEASE_TAG" "$deploymentRepo" || {
 
 # Copy fileStore from core to backend
 echo "Copying fileStore from core to backend..."
-cp -r "$coreDir/framework/fileStore" "$backendDir/src/main/webapp/"
+if [ -d "$coreDir/framework/fileStore" ]; then
+    cp -r "$coreDir/framework/fileStore" "$backendDir/src/main/webapp/"
+    echo "FileStore folder copied successfully."
+else
+    echo "Warning: FileStore folder not found in core repo."
+fi
 
 # Create testscriptsRDKB folder in fileStore
 echo "Creating testscriptsRDKB directory..."
