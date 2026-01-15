@@ -141,6 +141,15 @@ else
     echo "Warning: application.properties not found at $PROPS_FILE"
 fi
 
+#Modify tm.config file before building war
+echo "Modifying tm.config with backend URL"
+TM_CONFIG_FILE="$backendDir/src/main/resources/tm.config"
+if [ -f "$TM_CONFIG_FILE" ]; then
+    sed -i "s|\${BACKEND_URL}|${BACKEND_URL}|g" "$TM_CONFIG_FILE"
+    echo "tm.config modified successfully."
+else
+    echo "Warning: tm.config not found at $TM_CONFIG_FILE"
+fi
 
 # Build WAR file using Maven
 echo "Building WAR file with Maven..."
