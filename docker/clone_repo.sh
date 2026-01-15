@@ -88,7 +88,8 @@ git clone -b "$RELEASE_TAG" "$deploymentRepo" || {
 echo "Modifying tm.config with backend URL"
 TM_CONFIG_FILE="$coreDir/framework/fileStore/tm.config"
 if [ -f "$TM_CONFIG_FILE" ]; then
-    sed -i "s|\${BACKEND_URL}|${BACKEND_URL}|g" "$TM_CONFIG_FILE"
+    echo "BACKEND_URL is set to: $BACKEND_URL"
+    sed -i 's|${BACKEND_URL}|'"${BACKEND_URL}"'|g' "$TM_CONFIG_FILE"
     echo "tm.config modified successfully."
 else
     echo "Warning: tm.config not found at $TM_CONFIG_FILE"
