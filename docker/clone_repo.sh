@@ -41,8 +41,7 @@ fi
 echo "Final RELEASE_TAG: '$RELEASE_TAG'"
 
 # Export all variables from .env file
-export $(grep -v '^#' .env | xargs)
-
+export DATASOURCE_URL DATASOURCE_USERNAME DATASOURCE_PASSWORD JWT_SECRET BACKEND_URL
 
 # Load additional variables from environment or .env
 DATASOURCE_URL=${DATASOURCE_URL}
