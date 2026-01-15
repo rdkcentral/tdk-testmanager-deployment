@@ -30,7 +30,6 @@ else
     echo "No command line argument provided, checking for .env file..."
     if [ -f ".env" ]; then
         echo "Loading .env file..."
-        export $(grep -v '^#' .env | xargs)
         RELEASE_TAG=${RELEASE_TAG:-"develop"}
         echo "Using RELEASE_TAG from .env: '$RELEASE_TAG'"
     else
@@ -39,13 +38,19 @@ else
     fi
 fi
 
+echo "Final RELEASE_TAG: '$RELEASE_TAG'"
+
+# Export all variables from .env file
+export $(grep -v '^#' .env | xargs)
+
 
 # Load additional variables from environment or .env
-DATASOURCE_URL=${DATASOURCE_URL:-"jdbc:mysql://mysql-db:3306/tdktestmanagerproddb?createDatabaseIfNotExist=true&autoReconnect=true&allowPublicKeyRetrieval=true&useSSL=false"}
-DATASOURCE_USERNAME=${DATASOURCE_USERNAME:-"root"}
-DATASOURCE_PASSWORD=${DATASOURCE_PASSWORD:-"root"}
-JWT_SECRET=${JWT_SECRET:?ERROR: JWT_SECRET is not set}
-BACKEND_URL=${BACKEND_URL:-"http://localhost:8080/tdkservice"}
+DATASOURCE_URL=${DATASOURCE_URL}
+DATASOURCE_USERNAME=${DATASOURCE_USERNAME}
+DATASOURCE_PASSWORD=${DATASOURCE_PASSWORD}
+JWT_SECRET=${JWT_SECRET}
+BACKEND_URL=${BACKEND_URL}
+
 
 # Display loaded variables
 echo "DATASOURCE_URL: $DATASOURCE_URL"
@@ -55,7 +60,7 @@ echo "JWT_SECRET: $JWT_SECRET"
 echo "BACKEND_URL: $BACKEND_URL"
 
 
-echo "Final RELEASE_TAG: '$RELEASE_TAG'"
+
 
 backendRepo="https://github.com/rdkcentral/tdk-testmanager-backend.git"
 coreRepo="https://github.com/rdkcentral/tdk-core.git"
@@ -156,18 +161,26 @@ else
 fi
 
 
-# Modify application.properties BEFORE building WAR
+# Function to escape special characters for sed replacement
+escape_for_sed() {
+    echo "$1" | sed -e 's/[\/&]/\\&/g'
+}
+
+# Escape the values
+DATASOURCE_URL_ESCAPED=$(escape_for_sed "$DATASOURCE_URL")
+
 echo "Modifying application.properties with environment variables..."
 PROPS_FILE="$backendDir/src/main/resources/application.properties"
 if [ -f "$PROPS_FILE" ]; then
-    sed -i "s|\${DATASOURCE_URL}|${DATASOURCE_URL}|g" "$PROPS_FILE"
-    sed -i "s|\${DATASOURCE_USERNAME}|${DATASOURCE_USERNAME}|g" "$PROPS_FILE"
-    sed -i "s|\${DATASOURCE_PASSWORD}|${DATASOURCE_PASSWORD}|g" "$PROPS_FILE"
-    sed -i "s|\${JWT_SECRET}|${JWT_SECRET}|g" "$PROPS_FILE"
+    sed -i 's|${DATASOURCE_URL}|'"${DATASOURCE_URL_ESCAPED}"'|' "$PROPS_FILE"
+    sed -i 's|${DATASOURCE_USERNAME}|'"${DATASOURCE_USERNAME}"'|' "$PROPS_FILE"
+    sed -i 's|${DATASOURCE_PASSWORD}|'"${DATASOURCE_PASSWORD}"'|' "$PROPS_FILE"
+    sed -i 's|${JWT_SECRET}|'"${JWT_SECRET}"'|' "$PROPS_FILE"
     echo "application.properties modified successfully."
 else
     echo "Warning: application.properties not found at $PROPS_FILE"
 fi
+
 
 
 
