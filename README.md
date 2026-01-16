@@ -12,8 +12,7 @@ Contains TDK test manager tool deployment files
 
 ## Overview
 
-This project uses Docker Compose to orchestrate multiple services including the backend application, frontend, and database.
-It also contains the data dump and other release migration related configurations
+This project uses Docker Compose to orchestrate multiple services including the backend application, frontend, and database for tdk-testmanager. It also contains the data dump and other release migration related configurations
 
 
 ## Docker Setup
@@ -171,8 +170,7 @@ This  command will:
   - http://{IP}:8443/tdkservice/actuator/health - Use this endpoint to check if the app is up
 
 
-### 5. Setup after Deployment
-
+### 5. Accesing containers after deployment
 
 #### View docker containers
 
@@ -181,15 +179,25 @@ This  command will:
 docker ps -a
 ```
 
-#### How to enter front end container
 
-Enter front end docker container with the below command
+#### How to enter tdk-frontend container
+
+Enter front-end docker container with the below command
 
 ```Bash
 docker exec -it tdk-frontend bash
 ```
 
-#### How to enter mysql db container
+#### How to enter mysql-db container
+
+Enter mysql-db docker container with the below command
+
+```Bash
+docker exec -it mysql-db bash
+```
+
+
+#### How to enter tdk-backend container
 
 Enter front end docker container with the below command
 
@@ -199,77 +207,35 @@ docker exec -it mysql-db bash
 
 
 
-#### Configure backend service URL in the backend config and copy the fileStore(Copying the fileStore is a temporary step, it will be automated by October 2025 after the scripts and core open sourcing )
 
-
-1. Copy the fileStore.zip share by the TDK tools team to your ubuntu VM
-
-2. Copy the fileStore.zip to the backend docker container
-
-```Bash
-docker cp {source} tdk-backend:/mnt
-
-#eg : docker cp /home/ajayan524/fileStore.zip tdk-backend:/mnt
-```
-
-3. Enter backend end docker container with the below command
-
-```Bash
-docker exec -it tdk-backend bash
-```
-
-4. Delete the existing fileStore in the deployment and copy the new fileStore in the deployment
-
-```Bash
-cd /mnt
-rm -r /opt/tomcat/webapps/tdkservice/fileStore
-cp fileStore.zip /opt/tomcat/webapps/tdkservice
-cd /opt/tomcat/webapps/tdkservice
-unzip fileStore.zip
-```
-
-
-5. Edit the config file to point to the backend URL.
-
-
-```Bash
-vi /opt/tomcat/webapps/tdkservice/fileStore/tm.config
-```
-
-6. Replace the tm URL value with your app URL
-
-```Bash
-tmURL=http://{IP}:8443/tdkservice/
-```
-
-The app should be ready to use now
 
 ## Miscellaneous
 
 #### Stop all containers
 
-If some thing went wrong during the initial setup and we want to build docker compose again, use the below and then run the build command.The command docker compose down stops and removes the containers, networks, and, by default, the volumes defined by your docker-compose.yml file.This flag tells Docker Compose to also remove all named volumes 
+If some thing went wrong during the initial setup and we want to build docker compose again, use the below and then run the build command.The command docker compose down stops and removes the containers, networks, and, by default, the volumes defined by your docker-compose.yml file.This flag tells Docker Compose to also remove all named volumes. Use this only during intial setup when you dont have any data in the volume
 
 ```Bash
+cd tdk-testmanager-deployment/docker
 docker compose down -v
 ```
 
 #### Start and stop tomcat in backend container
 
-Start and stop tomcat from docker container
+##### Start and stop tomcat from docker container
 
 ```Bash
 supervisorctl stop tomcat
 supervisorctl start tomcat
 ```
 
-Restart tomcat
+##### Restart tomcat
 
 ```Bash
 supervisorctl restart tomcat
 ```
 
-#### Start and stop nginx in frontend container
+##### Start and stop nginx in frontend container
 
 Restart nginx
 
