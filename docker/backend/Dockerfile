@@ -65,7 +65,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir pip==25.1.1 \
  && pip install --no-cache-dir \
     xlwt-future==0.8.0 \
-    tftpy==0.8.4 \
+    tftpy==0.8.6 \
     websocket-client==1.8.0 \
     selenium==3.141.0 \
     requests==2.31.0 \
