@@ -29,62 +29,37 @@ Before running the application, ensure you have:
 
 #### Softwares
 
-
-- **Docker Engine**: Version 28.1 is recommended
+Recommended and Verified versions are given below. Higher versions may work but are not verified
+- **Docker Engine**: Version 28.1 is recommended 
 - **Docker Compose**: Version 2.40.0 is recommended
 
 
 #### Installing Docker and Docker compose on Ubuntu
 
-If you don't have Docker installed, follow these steps:
+Please follow these steps to install docker, this will install the docker version - 28.1 and docker compose version
+- 2.40.0:
+
+##### 1. Clone this Repository and Install Docker
 
 ```bash
-# Update package index
-sudo apt-get update
-
-# Install required packages
-sudo apt-get install ca-certificates curl
-
-# Create directory for apt keyrings
-sudo install -m 0755 -d /etc/apt/keyrings
-
-# Add Docker's official GPG key
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add Docker repository to apt sources
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-$(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Update package index again
-sudo apt-get update
-
-# Install Docker Engine and Docker Compose plugin
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Verify installation
-docker --version
-docker compose version
+git clone https://github.com/rdkcentral/tdk-testmanager-deployment.git
+cd tdk-testmanager-deployment
 ```
 
-If the docker compose version is less than the recommended one, Please follow the below steps to get the exact version
+
+##### 2.  Install Docker and Docker Compose
 
 ```bash
+cd docker
+sudo ./install-docker.sh
 
-#Direct Download via Curl
+```
 
-#Remove old Compose and create plugins directory:
-sudo apt remove docker-compose -y
-sudo mkdir -p /usr/libexec/docker/cli-plugins
+#### 3. Check docker and docker compose version
 
-#Download and install:
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.40.0/docker-compose-linux-x86_64" -o /usr/libexec/docker/cli-plugins/docker-compose
-sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
-
-#Verify: 
-docker compose version
-
+```bash
+docker --version        # Should show: Docker version 28.1.0
+docker compose version  # Should show: Docker Compose version v2.40.0
 ```
 
 
