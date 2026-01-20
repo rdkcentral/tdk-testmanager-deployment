@@ -20,8 +20,8 @@
 FROM node:22.15.0-alpine AS builder
 
 # Build argument for branch name
-ARG RELEASE_TAG=develop
-# Note: 'develop' is the default branch name if not set from environment variable
+ARG RELEASE_TAG=main
+# Note: 'main' is the default branch name if not set from environment variable
 
 # Set environment variables
 ENV ANGULAR_CLI_VERSION=17.3.10
@@ -60,7 +60,7 @@ FROM node:18-alpine AS nodebuilder
 
 # Build argument for branch name (needs to be redeclared in each stage)
 ARG RELEASE_TAG=develop
-# Note: 'develop' is the default branch name if not set from environment variable
+# Note: 'main' is the default branch name if not set from environment variable
 
 WORKDIR /nodeapp
 

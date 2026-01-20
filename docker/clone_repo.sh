@@ -31,10 +31,10 @@ else
     if [ -f ".env" ]; then
         echo "Loading .env file..."
         export $(grep -v '^#' .env | xargs)
-        RELEASE_TAG=${RELEASE_TAG:-"develop"}
+        RELEASE_TAG=${RELEASE_TAG:-"main"}
         echo "Using RELEASE_TAG from .env: '$RELEASE_TAG'"
     else
-        RELEASE_TAG="develop"
+        RELEASE_TAG="main"
         echo "No .env file found, using default: '$RELEASE_TAG'"
     fi
 fi
@@ -60,7 +60,7 @@ echo "Cloning backend repository..."
 if [ -d "$backendDir" ]; then rm -rf "$backendDir"; fi
 git clone -b "$RELEASE_TAG" "$backendRepo" || {
     echo "Warning: Branch $RELEASE_TAG not found in backend repo, trying develop..."
-    git clone -b "develop" "$backendRepo"
+    git clone -b "main" "$backendRepo"
 }
 
 # Clone core repo
@@ -68,7 +68,7 @@ echo "Cloning core repository..."
 if [ -d "$coreDir" ]; then rm -rf "$coreDir"; fi
 git clone -b "$RELEASE_TAG" "$coreRepo" || {
     echo "Warning: Branch $RELEASE_TAG not found in core repo, trying rdk-next..."
-    git clone -b "develop" "$coreRepo"
+    git clone -b "main" "$coreRepo"
 }
 
 # Clone broadband repo
@@ -76,7 +76,7 @@ echo "Cloning broadband repository..."
 if [ -d "$broadbandDir" ]; then rm -rf "$broadbandDir"; fi
 git clone -b "$RELEASE_TAG" "$broadbandRepo" || {
     echo "Warning: Branch $RELEASE_TAG not found in broadband repo, trying main..."
-    git clone -b "develop" "$broadbandRepo"
+    git clone -b "main" "$broadbandRepo"
 }
 
 # Clone deployment repo for datamigration folder
@@ -84,7 +84,7 @@ echo "Cloning deployment repository..."
 if [ -d "$deploymentDir" ]; then rm -rf "$deploymentDir"; fi
 git clone -b "$RELEASE_TAG" "$deploymentRepo" || {
     echo "Warning: Branch $RELEASE_TAG not found in deployment repo, trying main..."
-    git clone -b "develop" "$deploymentRepo"
+    git clone -b "main" "$deploymentRepo"
 }
 
 

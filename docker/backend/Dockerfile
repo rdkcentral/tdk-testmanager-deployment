@@ -19,9 +19,9 @@
 FROM ubuntu:24.04
 
 # Build argument for branch name
-ARG RELEASE_TAG=develop
+ARG RELEASE_TAG=main
 ARG BACKEND_URL
-# Note: 'develop' is the default branch name if not set from environment variable
+# Note: 'main' is the default branch name if not set from environment variable
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
