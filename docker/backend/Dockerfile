@@ -120,7 +120,7 @@ RUN /opt/clone_repo.sh "${RELEASE_TAG}" "${BACKEND_URL}"
 
 
 # Run the ChromeDriver installation script
-RUN /opt/install_chromedriver.s || true
+RUN /opt/install_chromedriver.sh || true
 
 # Create setenv.sh for Tomcat to pass environment variables
 RUN echo '#!/bin/bash' > /opt/tomcat/bin/setenv.sh && \
