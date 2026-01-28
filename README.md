@@ -1,6 +1,6 @@
 # TDK Test Manager Deployment
 
-This repository contains deployment configurations for the TDK Test Manager application.
+This repository contains deployment configurations and files for the TDK Test Manager application.
 
 
 ### Table of Contents
@@ -169,7 +169,7 @@ docker exec -it mysql-db bash
 
 ### Stop all containers
 
-If some thing went wrong during the initial setup and we want to build docker compose again, use the below and then run the build command.The command docker compose down stops and removes the containers, networks, and, by default, the volumes defined by your docker-compose.yml file.This flag tells Docker Compose to also remove all named volumes. Use this only during intial setup when you dont have any data in the volume
+If some thing went wrong during the initial setup and we want to build docker compose again,  then run the build command.The command stops and removes the containers, networks, and, by default, the volumes defined by your docker-compose.yml file.This flag tells Docker Compose to also remove all named volumes. **Use this only during intial setup when you dont have any data in the volume**
 
 ```Bash
 cd tdk-testmanager-deployment/docker
@@ -256,13 +256,7 @@ volumes:
 * Safe updates without losing existing files or configurations.
 * Makes containers behave more like long-lived environments.
 
-#### To Reset Volumes
 
-If you need to start fresh and remove stored data:
-
-```bash
-docker compose down -v
-```
 
 
 
