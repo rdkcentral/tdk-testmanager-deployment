@@ -13,11 +13,11 @@ display_status() {
 }
 
 extract_docker_version() {
-    docker --version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1
+    docker --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1
 }
 
 extract_compose_version() {
-    docker compose version 2>/dev/null | grep -oP '\d+\.\d+\.\d+' | head -1
+    docker compose version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1
 }
 
 validate_version_match() {
@@ -25,10 +25,10 @@ validate_version_match() {
     local req_major="$2"
     local req_minor="$3"
     
-    local cur_major=$(echo "$current_ver" | cut -d. -f1)
-    local cur_minor=$(echo "$current_ver" | cut -d. -f2)
+    local cur_major=$(echo "$current_ver" | cut -d. -f1 | tr -d '[:space:]')
+    local cur_minor=$(echo "$current_ver" | cut -d. -f2 | tr -d '[:space:]')
     
-    [[ "$cur_major" == "$req_major" && "$cur_minor" == "$req_minor" ]]
+    [[ "$cur_major" -eq "$req_major" && "$cur_minor" -eq "$req_minor" ]]
 }
 
 remove_existing_docker() {
