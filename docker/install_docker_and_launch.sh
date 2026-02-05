@@ -88,34 +88,23 @@ if $DOCKER_OK && $COMPOSE_OK; then
     exit $?
 fi
 
-# Version mismatch or not installed
+# Version mismatch or not installed - proceed with reinstallation
 display_status "Version check results:"
 display_status "  Docker   - Installed: ${CURRENT_DOCKER_VER:-Not found}, Required: ${REQUIRED_DOCKER_MAJOR}.${REQUIRED_DOCKER_MINOR}.X"
 display_status "  Compose  - Installed: ${CURRENT_COMPOSE_VER:-Not found}, Required: ${REQUIRED_COMPOSE_MAJOR}.${REQUIRED_COMPOSE_MINOR}.X"
 
-echo ""
-read -p "Do you want to (re)install the recommended Docker versions? (Y/N): " USER_CHOICE
-
-case "${USER_CHOICE^^}" in
-    Y|YES)
-        display_status "User chose to install recommended versions"
-        if [[ -n "$CURRENT_DOCKER_VER" ]]; then
-            remove_existing_docker
-        fi
-        execute_docker_install
-        if [[ $? -ne 0 ]]; then
-            display_status "ERROR: Docker installation failed"
-            exit 1
-        fi
-        display_status "Docker installation completed successfully"
-        ;;
-    *)
-        display_status "WARNING: Proceeding with non-recommended versions"
-        display_status "  Recommended: Docker ${REQUIRED_DOCKER_MAJOR}.${REQUIRED_DOCKER_MINOR}.X, Compose ${REQUIRED_COMPOSE_MAJOR}.${REQUIRED_COMPOSE_MINOR}.X"
-        display_status "  Installed:   Docker ${CURRENT_DOCKER_VER:-N/A}, Compose ${CURRENT_COMPOSE_VER:-N/A}"
-        display_status "Continuing with application launch..."
-        ;;
-esac
+if [[ -n "$CURRENT_DOCKER_VER" ]]; then
+    display_status "Proceeding with Docker reinstallation..."
+    remove_existing_docker
+else
+    display_status "Proceeding with Docker installation..."
+fi
+execute_docker_install
+if [[ $? -ne 0 ]]; then
+    display_status "ERROR: Docker installation failed"
+    exit 1
+fi
+display_status "Docker installation completed successfully"
 
 execute_app_launch
 APP_STATUS=$?
