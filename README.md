@@ -87,8 +87,20 @@ chmod  +x  install_docker_and_launch.sh install-docker.sh launch-application.sh
 
 Run the script *install_docker_and_launch.sh*. This will install the required version of docker and bring up the application
 
+To deploy the latest tagged release run the following
+
 ```bash
-sudo ./install_docker_and_launch.sh 2>&1 | tee app-launch.log
+ ./install_docker_and_launch.sh 
+
+```
+
+To deploy a specific tagged release, pass it as argument
+
+```bash
+
+./install_docker_and_launch.sh <RELEASE-TAG>
+
+Example : ./install_docker_and_launch.sh TDK_M144
 
 ```
 
@@ -104,13 +116,13 @@ sudo ./install_docker_and_launch.sh 2>&1 | tee app-launch.log
   - Required Docker and Compose versions are installed automatically
 - Application containers will be built and started (first run may take several minutes)
 - A success message confirms the application is running
-- All output is saved to app-launch.log for troubleshooting
+- All output is saved to `install_docker_and_launch_<timestamp>.log` for troubleshooting
 
 #### 5 . Verify Application Startup
 
 - **Frontend**: Open *http://{IP}:8443* in your browser, you will be able to see the login screen
 
-*Example : http://192.168.162.65:8443*
+  *Example : http://192.168.162.65:8443*
 
 - **Backend API**: The backend API is proxied behind nginx, So the app is available in 8443 port under path tdkservice.
   - http://{IP}:8443/tdkservice/actuator/health - Use this endpoint to check if the app is up
@@ -120,7 +132,7 @@ sudo ./install_docker_and_launch.sh 2>&1 | tee app-launch.log
      ```
 
 
-*Example : http://192.168.162.65:8443/tdkservice/actuator/health*
+    *Example : http://192.168.162.65:8443/tdkservice/actuator/health*
 
 
 

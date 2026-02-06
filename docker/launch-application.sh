@@ -42,7 +42,7 @@ update_release_tag() {
     fi
     
     log_message "Updating RELEASE_TAG to: $new_tag"
-    sed -i "s/^RELEASE_TAG=.*/RELEASE_TAG=$new_tag/" "$env_file"
+    sed -i "s|^RELEASE_TAG=.*|RELEASE_TAG=$new_tag|" "$env_file"
     log_message "RELEASE_TAG updated successfully"
 }
 
