@@ -30,16 +30,19 @@ REQUIRED_COMPOSE_MINOR="40"
 # Log file setup
 LOG_FILE="${SCRIPT_DIR}/install_docker_and_launch_$(date '+%Y%m%d_%H%M%S').log"
 
+# Release tag argument (optional)
+RELEASE_TAG="$1"
+
+display_status() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+
 # Redirect all output to both console and log file
 exec > >(tee -a "$LOG_FILE") 2>&1
 
 display_status "Log file: $LOG_FILE"
 
-
-
-display_status() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
-}
 
 extract_docker_version() {
     docker --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1
@@ -84,7 +87,12 @@ execute_app_launch() {
         display_status "ERROR: launch-application.sh not found at $launch_script"
         return 1
     fi
-    bash "$launch_script"
+    if [[ -n "$RELEASE_TAG" ]]; then
+        display_status "Passing release tag to launch script: $RELEASE_TAG"
+        bash "$launch_script" "$RELEASE_TAG"
+    else
+        bash "$launch_script"
+    fi
     return $?
 }
 
