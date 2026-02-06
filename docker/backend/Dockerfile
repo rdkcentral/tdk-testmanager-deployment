@@ -19,8 +19,9 @@
 FROM ubuntu:24.04
 
 # Build argument for branch name
-ARG RELEASE_BRANCH=develop
-# Note: 'develop' is the default branch name if not set from environment variable
+ARG RELEASE_TAG=main
+ARG BACKEND_URL
+# Note: 'main' is the default branch name if not set from environment variable
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive
@@ -64,7 +65,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir pip==25.1.1 \
  && pip install --no-cache-dir \
     xlwt-future==0.8.0 \
-    tftpy==0.8.4 \
+    tftpy==0.8.6 \
     websocket-client==1.8.0 \
     selenium==3.141.0 \
     requests==2.31.0 \
@@ -76,7 +77,8 @@ RUN pip install --no-cache-dir pip==25.1.1 \
     paramiko==3.4.0 \
     gevent==23.9.1 \
     opencv-python==4.9.0.80 \
-    pytesseract==0.3.10
+    pytesseract==0.3.10 \
+    setuptools==80.9.0
 
 #  Install Maven
 ENV MAVEN_VERSION=3.9.9
@@ -113,9 +115,9 @@ RUN chmod +x /opt/install_chromedriver.sh
 # Set working directory
 WORKDIR /opt
 
-RUN /opt/clone_repo.sh "${RELEASE_BRANCH}"
+RUN /opt/clone_repo.sh "${RELEASE_TAG}" "${BACKEND_URL}"
 # Run the clone script to build the application with branch parameter
-#RUN /opt/clone_repo.sh ${RELEASE_BRANCH}
+
 
 # Run the ChromeDriver installation script
 RUN /opt/install_chromedriver.s || true

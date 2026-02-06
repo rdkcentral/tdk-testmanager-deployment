@@ -18,28 +18,32 @@
 # limitations under the License.
 ##########################################################################
 
-# Variables - use command line argument first, then RELEASE_REFERENCE from env file, fallback to defaults
+# Variables - use command line argument first, then RELEASE_TAG from env file, fallback to defaults
 echo "=== CLONE SCRIPT START ==="
 
 # If command line argument provided, use it directly (Docker execution)
 if [ -n "$1" ]; then
-    RELEASE_BRANCH="$1"
-    echo "Using command line argument: '$RELEASE_BRANCH'"
+    RELEASE_TAG="$1"
+    echo "Using command line argument: '$RELEASE_TAG'"
 else
     # No command line argument, try to load from .env file (manual execution)
     echo "No command line argument provided, checking for .env file..."
     if [ -f ".env" ]; then
         echo "Loading .env file..."
         export $(grep -v '^#' .env | xargs)
-        RELEASE_BRANCH=${RELEASE_REFERENCE:-"develop"}
-        echo "Using RELEASE_REFERENCE from .env: '$RELEASE_BRANCH'"
+        RELEASE_TAG=${RELEASE_TAG:-"main"}
+        echo "Using RELEASE_TAG from .env: '$RELEASE_TAG'"
     else
-        RELEASE_BRANCH="develop"
-        echo "No .env file found, using default: '$RELEASE_BRANCH'"
+        RELEASE_TAG="main"
+        echo "No .env file found, using default: '$RELEASE_TAG'"
     fi
 fi
 
-echo "Final RELEASE_BRANCH: '$RELEASE_BRANCH'"
+echo "Final RELEASE_TAG: '$RELEASE_TAG'"
+
+BACKEND_URL="${2:-http://localhost:8443/tdkservice}"
+echo "BACKEND_URL: '$BACKEND_URL'"
+
 
 backendRepo="https://github.com/rdkcentral/tdk-testmanager-backend.git"
 coreRepo="https://github.com/rdkcentral/tdk-core.git"
@@ -54,38 +58,55 @@ deploymentDir="tdk-testmanager-deployment"
 # Clone backend repo
 echo "Cloning backend repository..."
 if [ -d "$backendDir" ]; then rm -rf "$backendDir"; fi
-git clone -b "$RELEASE_BRANCH" "$backendRepo" || {
-    echo "Warning: Branch $RELEASE_BRANCH not found in backend repo, trying develop..."
-    git clone -b "develop" "$backendRepo"
+git clone -b "$RELEASE_TAG" "$backendRepo" || {
+    echo "Warning: Branch $RELEASE_TAG not found in backend repo, trying develop..."
+    git clone -b "main" "$backendRepo"
 }
 
 # Clone core repo
 echo "Cloning core repository..."
 if [ -d "$coreDir" ]; then rm -rf "$coreDir"; fi
-git clone -b "$RELEASE_BRANCH" "$coreRepo" || {
-    echo "Warning: Branch $RELEASE_BRANCH not found in core repo, trying rdk-next..."
-    git clone -b "rdk-next" "$coreRepo"
+git clone -b "$RELEASE_TAG" "$coreRepo" || {
+    echo "Warning: Branch $RELEASE_TAG not found in core repo, trying rdk-next..."
+    git clone -b "main" "$coreRepo"
 }
 
 # Clone broadband repo
 echo "Cloning broadband repository..."
 if [ -d "$broadbandDir" ]; then rm -rf "$broadbandDir"; fi
-git clone -b "$RELEASE_BRANCH" "$broadbandRepo" || {
-    echo "Warning: Branch $RELEASE_BRANCH not found in broadband repo, trying main..."
+git clone -b "$RELEASE_TAG" "$broadbandRepo" || {
+    echo "Warning: Branch $RELEASE_TAG not found in broadband repo, trying main..."
     git clone -b "main" "$broadbandRepo"
 }
 
 # Clone deployment repo for datamigration folder
 echo "Cloning deployment repository..."
 if [ -d "$deploymentDir" ]; then rm -rf "$deploymentDir"; fi
-git clone -b "$RELEASE_BRANCH" "$deploymentRepo" || {
-    echo "Warning: Branch $RELEASE_BRANCH not found in deployment repo, trying main..."
+git clone -b "$RELEASE_TAG" "$deploymentRepo" || {
+    echo "Warning: Branch $RELEASE_TAG not found in deployment repo, trying main..."
     git clone -b "main" "$deploymentRepo"
 }
 
+
+#Modify tm.config file before copying
+echo "Modifying tm.config with backend URL"
+TM_CONFIG_FILE="$coreDir/framework/fileStore/tm.config"
+if [ -f "$TM_CONFIG_FILE" ]; then
+    echo "BACKEND_URL is set to: $BACKEND_URL"
+    sed -i 's|${BACKEND_URL}|'"${BACKEND_URL}"'|g' "$TM_CONFIG_FILE"
+    echo "tm.config modified successfully."
+else
+    echo "Warning: tm.config not found at $TM_CONFIG_FILE"
+fi
+
+
 # Copy fileStore from core to backend
-echo "Copying fileStore from core to backend..."
-cp -r "$coreDir/framework/fileStore" "$backendDir/src/main/webapp/"
+if [ -d "$coreDir/framework/fileStore" ]; then
+    cp -r "$coreDir/framework/fileStore" "$backendDir/src/main/webapp/"
+    echo "FileStore folder copied successfully."
+else
+    echo "Warning: FileStore folder not found in core repo."
+fi
 
 # Create testscriptsRDKB folder in fileStore
 echo "Creating testscriptsRDKB directory..."
@@ -102,7 +123,7 @@ fi
 
 # Copy integration folder from core to testscriptsRDKB
 echo "Copying integration folder from core repo..."
-if [ -d "$coreDir/framework/web-app/fileStore/testscriptsRDKBAdvanced/integration" ]; then
+if [ -d "$coreDir/framework/fileStore/testscriptsRDKBAdvanced/integration" ]; then
     cp -r "$coreDir/framework/fileStore/testscriptsRDKBAdvanced/integration" "$backendDir/src/main/webapp/fileStore/testscriptsRDKB/"
     echo "Integration folder copied successfully."
 else

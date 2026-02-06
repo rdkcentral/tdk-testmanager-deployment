@@ -12,8 +12,7 @@ Contains TDK test manager tool deployment files
 
 ## Overview
 
-This project uses Docker Compose to orchestrate multiple services including the backend application, frontend, and database.
-It also contains the data dump and other release migration related configurations
+This project uses Docker Compose to orchestrate multiple services including the backend application, frontend, and database for tdk-testmanager. It also contains the data dump and other release migration related configurations
 
 
 ## Docker Setup
@@ -30,62 +29,37 @@ Before running the application, ensure you have:
 
 #### Softwares
 
-
-- **Docker Engine**: Version 28.1 is recommended
+Recommended and Verified versions are given below. Higher versions may work but are not verified
+- **Docker Engine**: Version 28.1 is recommended 
 - **Docker Compose**: Version 2.40.0 is recommended
 
 
 #### Installing Docker and Docker compose on Ubuntu
 
-If you don't have Docker installed, follow these steps:
+Please follow these steps to install docker, this will install the docker version - 28.1 and docker compose version
+- 2.40.0:
+
+##### 1. Clone this Repository and Install Docker
 
 ```bash
-# Update package index
-sudo apt-get update
-
-# Install required packages
-sudo apt-get install ca-certificates curl
-
-# Create directory for apt keyrings
-sudo install -m 0755 -d /etc/apt/keyrings
-
-# Add Docker's official GPG key
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add Docker repository to apt sources
-echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-$(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Update package index again
-sudo apt-get update
-
-# Install Docker Engine and Docker Compose plugin
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Verify installation
-docker --version
-docker compose version
+git clone https://github.com/rdkcentral/tdk-testmanager-deployment.git
+cd tdk-testmanager-deployment
 ```
 
-If the docker compose version is less than the recommended one, Please follow the below steps to get the exact version
+
+##### 2.  Install Docker and Docker Compose
 
 ```bash
+cd docker
+sudo ./install-docker.sh
 
-#Direct Download via Curl
+```
 
-#Remove old Compose and create plugins directory:
-sudo apt remove docker-compose -y
-sudo mkdir -p /usr/libexec/docker/cli-plugins
+#### 3. Check docker and docker compose version
 
-#Download and install:
-sudo curl -L "https://github.com/docker/compose/releases/download/v2.40.0/docker-compose-linux-x86_64" -o /usr/libexec/docker/cli-plugins/docker-compose
-sudo chmod +x /usr/libexec/docker/cli-plugins/docker-compose
-
-#Verify: 
-docker compose version
-
+```bash
+docker --version        # Should show: Docker version 28.1.0
+docker compose version  # Should show: Docker Compose version v2.40.0
 ```
 
 
@@ -171,8 +145,7 @@ This  command will:
   - http://{IP}:8443/tdkservice/actuator/health - Use this endpoint to check if the app is up
 
 
-### 5. Setup after Deployment
-
+### 5. Accesing containers after deployment
 
 #### View docker containers
 
@@ -181,15 +154,25 @@ This  command will:
 docker ps -a
 ```
 
-#### How to enter front end container
 
-Enter front end docker container with the below command
+#### How to enter tdk-frontend container
+
+Enter front-end docker container with the below command
 
 ```Bash
 docker exec -it tdk-frontend bash
 ```
 
-#### How to enter mysql db container
+#### How to enter mysql-db container
+
+Enter mysql-db docker container with the below command
+
+```Bash
+docker exec -it mysql-db bash
+```
+
+
+#### How to enter tdk-backend container
 
 Enter front end docker container with the below command
 
@@ -199,77 +182,35 @@ docker exec -it mysql-db bash
 
 
 
-#### Configure backend service URL in the backend config and copy the fileStore(Copying the fileStore is a temporary step, it will be automated by October 2025 after the scripts and core open sourcing )
 
-
-1. Copy the fileStore.zip share by the TDK tools team to your ubuntu VM
-
-2. Copy the fileStore.zip to the backend docker container
-
-```Bash
-docker cp {source} tdk-backend:/mnt
-
-#eg : docker cp /home/ajayan524/fileStore.zip tdk-backend:/mnt
-```
-
-3. Enter backend end docker container with the below command
-
-```Bash
-docker exec -it tdk-backend bash
-```
-
-4. Delete the existing fileStore in the deployment and copy the new fileStore in the deployment
-
-```Bash
-cd /mnt
-rm -r /opt/tomcat/webapps/tdkservice/fileStore
-cp fileStore.zip /opt/tomcat/webapps/tdkservice
-cd /opt/tomcat/webapps/tdkservice
-unzip fileStore.zip
-```
-
-
-5. Edit the config file to point to the backend URL.
-
-
-```Bash
-vi /opt/tomcat/webapps/tdkservice/fileStore/tm.config
-```
-
-6. Replace the tm URL value with your app URL
-
-```Bash
-tmURL=http://{IP}:8443/tdkservice/
-```
-
-The app should be ready to use now
 
 ## Miscellaneous
 
 #### Stop all containers
 
-If some thing went wrong during the initial setup and we want to build docker compose again, use the below and then run the build command.The command docker compose down stops and removes the containers, networks, and, by default, the volumes defined by your docker-compose.yml file.This flag tells Docker Compose to also remove all named volumes 
+If some thing went wrong during the initial setup and we want to build docker compose again, use the below and then run the build command.The command docker compose down stops and removes the containers, networks, and, by default, the volumes defined by your docker-compose.yml file.This flag tells Docker Compose to also remove all named volumes. Use this only during intial setup when you dont have any data in the volume
 
 ```Bash
+cd tdk-testmanager-deployment/docker
 docker compose down -v
 ```
 
 #### Start and stop tomcat in backend container
 
-Start and stop tomcat from docker container
+##### Start and stop tomcat from docker container
 
 ```Bash
 supervisorctl stop tomcat
 supervisorctl start tomcat
 ```
 
-Restart tomcat
+##### Restart tomcat
 
 ```Bash
 supervisorctl restart tomcat
 ```
 
-#### Start and stop nginx in frontend container
+##### Start and stop nginx in frontend container
 
 Restart nginx
 
