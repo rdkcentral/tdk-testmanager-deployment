@@ -24,12 +24,40 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+
+# Optional release tag argument
+RELEASE_TAG_ARG="$1"
+
+update_release_tag() {
+    local new_tag="$1"
+    local env_file="${SCRIPT_DIR}/.env"
+    
+    if [[ -z "$new_tag" ]]; then
+        return 0
+    fi
+    
+    if [[ ! -f "$env_file" ]]; then
+        log_message "ERROR: .env file not found at $env_file"
+        return 1
+    fi
+    
+    log_message "Updating RELEASE_TAG to: $new_tag"
+    sed -i "s/^RELEASE_TAG=.*/RELEASE_TAG=$new_tag/" "$env_file"
+    log_message "RELEASE_TAG updated successfully"
+}
+
 log_message() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     echo "[$timestamp] $1"
 }
 
 log_message "Starting TDK Test Manager application setup..."
+
+
+# Update release tag if argument provided
+if [[ -n "$RELEASE_TAG_ARG" ]]; then
+    update_release_tag "$RELEASE_TAG_ARG"
+fi
 
 # Verify database directory exists
 if [ ! -d "${SCRIPT_DIR}/database" ]; then

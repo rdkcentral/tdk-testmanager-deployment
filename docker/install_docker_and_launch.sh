@@ -27,6 +27,16 @@ REQUIRED_DOCKER_MINOR="1"
 REQUIRED_COMPOSE_MAJOR="2"
 REQUIRED_COMPOSE_MINOR="40"
 
+# Log file setup
+LOG_FILE="${SCRIPT_DIR}/install_docker_and_launch_$(date '+%Y%m%d_%H%M%S').log"
+
+# Redirect all output to both console and log file
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+display_status "Log file: $LOG_FILE"
+
+
+
 display_status() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
 }
@@ -133,5 +143,7 @@ if [[ $APP_STATUS -eq 0 ]]; then
 else
     display_status "ERROR: Application launch failed (exit code: $APP_STATUS)"
 fi
+
+display_status "Full execution log saved to: $LOG_FILE"
 
 exit $APP_STATUS
