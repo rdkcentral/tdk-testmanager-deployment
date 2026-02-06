@@ -126,7 +126,7 @@ Example : ./install_docker_and_launch.sh TDK_M144
 
 - **Backend API**: The backend API is proxied behind nginx, So the app is available in 8443 port under path tdkservice.
   - http://{IP}:8443/tdkservice/actuator/health - Use this endpoint to check if the app is up
-  - The restapi will return the app health status like given below:
+  - The Rest api will return the app health status like given below:
   ```bash
     {"status":"UP"}
      ```
