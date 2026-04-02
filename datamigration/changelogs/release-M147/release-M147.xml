@@ -6,7 +6,7 @@
 
  
 
-    <changeSet id="release-<version>-data" author="admin">
+    <changeSet id="release-M147-data" author="admin">
         <sqlFile path="data-changes.sql" relativeToChangelogFile="true"/>
     </changeSet>
 </databaseChangeLog>
