@@ -4,8 +4,9 @@
                    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
                    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
 
+ 
 
-     <include file="db/changelogs/release-M147/release-M147.xml"/>
-     <include file="db/changelogs/release-M148/release-M148.xml"/>
-     <!-- Add more releases as needed -->
+    <changeSet id="release-M148-data" author="admin">
+        <sqlFile path="data-changes.sql" relativeToChangelogFile="true"/>
+    </changeSet>
 </databaseChangeLog>
