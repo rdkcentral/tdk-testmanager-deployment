@@ -5,8 +5,8 @@ This repository contains deployment configurations and files for the TDK Test Ma
 ### Table of Contents
 
 - [Overview](#overview)
-- [Application setup](#Application-setup)
-- [Miscellaneous](#Miscellaneous)
+- [Application setup](#application-setup)
+- [Miscellaneous](#miscellaneous)
 
 ## Overview
 
@@ -20,7 +20,7 @@ This project uses Docker Compose to orchestrate multiple services including the 
 
 Before proceeding, ensure you have:
 
-**Ubuntu**: Version 24.04 is recommended and verfied
+**Ubuntu**: Version 24.04 is recommended and verified
 
 ### Docker installation and app startup
 
@@ -57,7 +57,7 @@ vi .env
 
 Edit the `.env` file in the docker directory:
 
-1. _Get your IP address_ : Refer to the section [How to get IP of your ubuntu machine](#how-to-get-ip-of-your-ubuntu-machine) under Miscellaneous to get your IP.
+1. _Get your IP address_ : Refer to the section [Network Configuration](#network-configuration) under Miscellaneous to get your IP.
 
 2. _Update the BACKEND_URL_ : Change backend URL from `http://localhost:8443/tdkservice/` to `http://{Your-IP}:8443/tdkservice/`
 
@@ -112,7 +112,7 @@ Example : ./install_docker_and_launch.sh TDK_M149
 - A success message confirms the application is running
 - All output is saved to `install_docker_and_launch_<timestamp>.log` for troubleshooting
 
-#### 5 . Verify Application Startup
+#### 6 . Verify Application Startup
 
 - **Frontend**: Open _http://{IP}:8443_ in your browser, you will be able to see the login screen
 
@@ -253,14 +253,16 @@ nginx -s reload
 If you are going to access the test manager from the same network, run the below command to get your local IP:
 
 ```bash
-ifconfig
+ip addr show
 ```
 
-Take the IP address assigned to your VM's eth0 network interface. Example output:
+Take the IP address assigned to your VM's network interface (e.g., eth0). Example output:
 
 ```
-eth0      Link encap:Ethernet  HWaddr D4:CF:F9:49:E8:C9
-          inet addr:192.168.162.65  Bcast:192.168.162.255  Mask:255.255.255.0
+2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP group default qlen 1000
+    link/ether d4:cf:f9:49:e8:c9 brd ff:ff:ff:ff:ff:ff
+    inet 192.168.162.65/24 brd 192.168.162.255 scope global eth0
+       valid_lft forever preferred_lft forever
 ```
 
 </details>
