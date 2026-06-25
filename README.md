@@ -112,7 +112,7 @@ Example : ./install_docker_and_launch.sh TDK_M149
 - A success message confirms the application is running
 - All output is saved to `install_docker_and_launch_<timestamp>.log` for troubleshooting
 
-#### 6 . Verify Application Startup
+#### 6. Verify Application Startup
 
 - **Frontend**: Open _http://{IP}:8443_ in your browser, you will be able to see the login screen
 
@@ -127,6 +127,22 @@ Example : ./install_docker_and_launch.sh TDK_M149
   ```
 
   _Example : http://192.168.162.65:8443/tdkservice/actuator/health_
+
+#### 7. Login to the Application
+
+To access the TDK application, navigate to the following URL in your web browser:
+
+_http://{IP}:8443/login_
+
+_Example : http://192.168.162.65:8443/login_
+
+Use the default administrator credentials provided below to log in:
+
+- **Username**: `admin`
+- **Password**: `tdkforrdk`
+
+Please refer to the link below for instructions on how to change the password:
+https://wiki.rdkcentral.com/spaces/TDK/pages/474701332/TDK+Test+Manager+User+Guide#TDKTestManagerUserGuide-ChangePassword
 
 ## Miscellaneous
 
