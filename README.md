@@ -6,6 +6,7 @@ This repository contains deployment configurations and files for the TDK Test Ma
 
 - [Overview](#overview)
 - [Application setup](#application-setup)
+- [Troubleshooting](#troubleshooting)
 - [Miscellaneous](#miscellaneous)
 
 ## Overview
