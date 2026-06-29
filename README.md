@@ -144,6 +144,101 @@ Use the default administrator credentials provided below to log in:
 Please refer to the link below for instructions on how to change the password:
 https://wiki.rdkcentral.com/spaces/TDK/pages/474701332/TDK+Test+Manager+User+Guide#TDKTestManagerUserGuide-ChangePassword
 
+## Troubleshooting
+
+<details>
+<summary><strong>Docker Daemon Not Running After Installation</strong></summary>
+
+**Error:**
+
+```
+Docker and Compose installation completed successfully
+Starting TDK Test Manager application setup...
+Configuring directory permissions...
+Configuring file permissions...
+Building Docker images (no cache)...
+Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?
+ERROR: Docker build failed with exit code 1
+ERROR: Application launch failed (exit code: 1)
+```
+
+**Cause:**
+
+During Docker installation, the post-install hook (`deb-systemd-invoke`) attempted to start the Docker daemon automatically but was blocked by the system's `policy-rc.d` restriction. As a result, Docker was installed successfully but the daemon was never started.
+
+**Resolution:**
+
+Start and enable the Docker daemon manually:
+
+```bash
+systemctl enable docker
+systemctl start docker
+```
+
+Then re-run the deployment script:
+
+```bash
+./install_docker_and_launch.sh
+```
+
+</details>
+
+---
+
+<details>
+<summary><strong>Port 3306 Already in Use (MySQL Conflict)</strong></summary>
+
+**Error:**
+
+```
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint mysql-db: failed to bind host port for 0.0.0.0:3306:172.18.0.2:3306/tcp: address already in use
+ERROR: Failed to start containers (exit code: 1)
+```
+
+**Cause:**
+
+A native MySQL instance is already running on the host server and occupying port 3306. The Docker `mysql-db` container cannot bind to the same port.
+
+**Diagnosis:**
+
+Run the following command to confirm whether port 3306 is in use by the native MySQL service:
+
+```bash
+ss -tlnp | grep 3306
+```
+
+If you see a response similar to the following, it confirms that the host's native MySQL is running and using port 3306:
+
+```
+LISTEN 0      151        127.0.0.1:3306       0.0.0.0:*    users:(("mysqld",pid=3586492,fd=23))
+LISTEN 0      70         127.0.0.1:33060      0.0.0.0:*    users:(("mysqld",pid=3586492,fd=21))
+```
+
+**Resolution:**
+
+Stop and disable the native MySQL service to free port 3306:
+
+```bash
+systemctl stop mysql
+systemctl disable mysql
+```
+
+> **Note:** These commands only stop the MySQL process and prevent it from starting on reboot. Your existing database files at `/var/lib/mysql/` remain intact and can be restored at any time by running:
+>
+> ```bash
+> systemctl enable mysql && systemctl start mysql
+> ```
+
+Then re-run the deployment script:
+
+```bash
+./install_docker_and_launch.sh
+```
+
+</details>
+
+---
+
 ## Miscellaneous
 
 ### Docker Architecture
