@@ -95,13 +95,31 @@ apt-get install -y \
 echo -e "${GREEN}Step 7/9: Pinning Docker version to prevent auto-updates...${NC}"
 apt-mark hold docker-ce docker-ce-cli
 
-echo -e "${GREEN}Step 8/9: Installing Docker Compose version ${COMPOSE_VERSION}...${NC}"
+echo -e "${GREEN}Step 8/10: Enabling and starting Docker daemon...${NC}"
+systemctl enable docker
+systemctl start docker
+
+# Wait for Docker daemon to be ready
+MAX_WAIT=30
+WAIT_COUNT=0
+while ! docker info >/dev/null 2>&1; do
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+        echo -e "${RED}Error: Docker daemon failed to start within ${MAX_WAIT} seconds${NC}"
+        exit 1
+    fi
+    echo "Waiting for Docker daemon to start... (${WAIT_COUNT}/${MAX_WAIT})"
+    sleep 1
+done
+echo -e "${GREEN}Docker daemon is running.${NC}"
+
+echo -e "${GREEN}Step 9/10: Installing Docker Compose version ${COMPOSE_VERSION}...${NC}"
 mkdir -p /usr/libexec/docker/cli-plugins
 curl -L "https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-linux-x86_64" \
     -o /usr/libexec/docker/cli-plugins/docker-compose
 chmod +x /usr/libexec/docker/cli-plugins/docker-compose
 
-echo -e "${GREEN}Step 9/9: Verifying installation...${NC}"
+echo -e "${GREEN}Step 10/10: Verifying installation...${NC}"
 echo ""
 echo -e "${GREEN}==============================================================================${NC}"
 echo -e "${GREEN}   Installation Complete!                                                    ${NC}"
