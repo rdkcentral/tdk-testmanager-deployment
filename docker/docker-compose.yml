@@ -23,7 +23,7 @@ services:
           "localhost",
           "-u",
           "root",
-          "-p${MYSQL_ROOT_PASSWORD}",
+          "-p${MYSQL_ROOT_PASSWORD}"
         ]
       interval: 10s
       timeout: 5s
@@ -56,7 +56,7 @@ services:
           "CMD",
           "curl",
           "-f",
-          "http://localhost:8080/tdkservice/actuator/health",
+          "http://localhost:8080/tdkservice/actuator/health"
         ]
       interval: 20s
       timeout: 10s

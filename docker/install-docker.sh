@@ -64,27 +64,27 @@ if [ -f /etc/os-release ]; then
     fi
 fi
 
-echo -e "${GREEN}Step 1/9: Updating package index...${NC}"
+echo -e "${GREEN}Step 1/10: Updating package index...${NC}"
 apt-get update
 
-echo -e "${GREEN}Step 2/9: Installing required packages...${NC}"
+echo -e "${GREEN}Step 2/10: Installing required packages...${NC}"
 apt-get install -y ca-certificates curl
 
-echo -e "${GREEN}Step 3/9: Setting up Docker's GPG key...${NC}"
+echo -e "${GREEN}Step 3/10: Setting up Docker's GPG key...${NC}"
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
 
-echo -e "${GREEN}Step 4/9: Adding Docker repository...${NC}"
+echo -e "${GREEN}Step 4/10: Adding Docker repository...${NC}"
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
 $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
 tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-echo -e "${GREEN}Step 5/9: Updating package index...${NC}"
+echo -e "${GREEN}Step 5/10: Updating package index...${NC}"
 apt-get update
 
 
-echo -e "${GREEN}Step 6/9: Installing Docker Engine version 28.1.0...${NC}"
+echo -e "${GREEN}Step 6/10: Installing Docker Engine version 28.1.0...${NC}"
 apt-mark unhold docker-ce docker-ce-cli
 apt-get install -y \
     docker-ce=$DOCKER_VERSION \
@@ -92,7 +92,7 @@ apt-get install -y \
     containerd.io \
     docker-buildx-plugin
 
-echo -e "${GREEN}Step 7/9: Pinning Docker version to prevent auto-updates...${NC}"
+echo -e "${GREEN}Step 7/10: Pinning Docker version to prevent auto-updates...${NC}"
 apt-mark hold docker-ce docker-ce-cli
 
 echo -e "${GREEN}Step 8/10: Enabling and starting Docker daemon...${NC}"
