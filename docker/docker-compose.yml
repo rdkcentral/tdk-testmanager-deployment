@@ -1,7 +1,8 @@
 services:
   mysql-db:
-    image: mysql:8.4 
+    image: mysql:8.4
     container_name: mysql-db
+    restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -12,6 +13,22 @@ services:
       - ./database/init:/docker-entrypoint-initdb.d
     networks:
       - tdk-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "root",
+          "-p${MYSQL_ROOT_PASSWORD}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
   tdk-backend:
     build:
@@ -21,29 +38,47 @@ services:
         RELEASE_TAG: ${RELEASE_TAG:-develop}
         BACKEND_URL: ${BACKEND_URL}
     container_name: tdk-backend
+    restart: unless-stopped
     depends_on:
-      - mysql-db
+      mysql-db:
+        condition: service_healthy
     ports:
       - "8080:8080"
     env_file:
-      - .env 
+      - .env
     volumes:
-      - backend-webapps:/opt/tomcat/webapps  
+      - backend-webapps:/opt/tomcat/webapps
     networks:
       - tdk-net
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-f",
+          "http://localhost:8080/tdkservice/actuator/health"
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
 
   tdk-frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        API_URL: ${BACKEND_URL}  # Passed at build time using sed
+        API_URL: ${BACKEND_URL} # Passed at build time using sed
         RELEASE_TAG: ${RELEASE_TAG:-develop}
     container_name: tdk-frontend
+    restart: unless-stopped
+    depends_on:
+      tdk-backend:
+        condition: service_healthy
     ports:
-      - "8443:8443"  # nginx exposes Angular here
+      - "8443:8443" # nginx exposes Angular here
     environment:
-      BACKEND_URL: ${BACKEND_URL}  # Optional, for reference:   
+      BACKEND_URL: ${BACKEND_URL} # Optional, for reference:
     volumes:
       - frontend-html:/var/www/html
     networks:
@@ -55,4 +90,3 @@ volumes:
   frontend-html:
 networks:
   tdk-net:
-

@@ -64,27 +64,27 @@ if [ -f /etc/os-release ]; then
     fi
 fi
 
-echo -e "${GREEN}Step 1/9: Updating package index...${NC}"
+echo -e "${GREEN}Step 1/10: Updating package index...${NC}"
 apt-get update
 
-echo -e "${GREEN}Step 2/9: Installing required packages...${NC}"
+echo -e "${GREEN}Step 2/10: Installing required packages...${NC}"
 apt-get install -y ca-certificates curl
 
-echo -e "${GREEN}Step 3/9: Setting up Docker's GPG key...${NC}"
+echo -e "${GREEN}Step 3/10: Setting up Docker's GPG key...${NC}"
 install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
 
-echo -e "${GREEN}Step 4/9: Adding Docker repository...${NC}"
+echo -e "${GREEN}Step 4/10: Adding Docker repository...${NC}"
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
 $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
 tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-echo -e "${GREEN}Step 5/9: Updating package index...${NC}"
+echo -e "${GREEN}Step 5/10: Updating package index...${NC}"
 apt-get update
 
 
-echo -e "${GREEN}Step 6/9: Installing Docker Engine version 28.1.0...${NC}"
+echo -e "${GREEN}Step 6/10: Installing Docker Engine version 28.1.0...${NC}"
 apt-mark unhold docker-ce docker-ce-cli
 apt-get install -y \
     docker-ce=$DOCKER_VERSION \
@@ -92,16 +92,34 @@ apt-get install -y \
     containerd.io \
     docker-buildx-plugin
 
-echo -e "${GREEN}Step 7/9: Pinning Docker version to prevent auto-updates...${NC}"
+echo -e "${GREEN}Step 7/10: Pinning Docker version to prevent auto-updates...${NC}"
 apt-mark hold docker-ce docker-ce-cli
 
-echo -e "${GREEN}Step 8/9: Installing Docker Compose version ${COMPOSE_VERSION}...${NC}"
+echo -e "${GREEN}Step 8/10: Enabling and starting Docker daemon...${NC}"
+systemctl enable docker
+systemctl start docker
+
+# Wait for Docker daemon to be ready
+MAX_WAIT=30
+WAIT_COUNT=0
+while ! docker info >/dev/null 2>&1; do
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+        echo -e "${RED}Error: Docker daemon failed to start within ${MAX_WAIT} seconds${NC}"
+        exit 1
+    fi
+    echo "Waiting for Docker daemon to start... (${WAIT_COUNT}/${MAX_WAIT})"
+    sleep 1
+done
+echo -e "${GREEN}Docker daemon is running.${NC}"
+
+echo -e "${GREEN}Step 9/10: Installing Docker Compose version ${COMPOSE_VERSION}...${NC}"
 mkdir -p /usr/libexec/docker/cli-plugins
 curl -L "https://github.com/docker/compose/releases/download/v${COMPOSE_VERSION}/docker-compose-linux-x86_64" \
     -o /usr/libexec/docker/cli-plugins/docker-compose
 chmod +x /usr/libexec/docker/cli-plugins/docker-compose
 
-echo -e "${GREEN}Step 9/9: Verifying installation...${NC}"
+echo -e "${GREEN}Step 10/10: Verifying installation...${NC}"
 echo ""
 echo -e "${GREEN}==============================================================================${NC}"
 echo -e "${GREEN}   Installation Complete!                                                    ${NC}"

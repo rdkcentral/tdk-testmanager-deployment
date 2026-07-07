@@ -74,6 +74,65 @@ chmod 755 "${SCRIPT_DIR}/database/init/"
 log_message "Configuring file permissions..."
 chmod 644 "${SCRIPT_DIR}/database/init/tdk-master-data-dump.sql"
 
+# Verify Docker daemon is running before proceeding
+log_message "Checking Docker daemon status..."
+MAX_WAIT=30
+WAIT_COUNT=0
+while ! docker info >/dev/null 2>&1; do
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+    if [ $WAIT_COUNT -ge $MAX_WAIT ]; then
+        log_message "ERROR: Docker daemon is not running. Cannot connect to Docker at unix:///var/run/docker.sock"
+        log_message "Try running: sudo systemctl start docker"
+        exit 1
+    fi
+    log_message "Waiting for Docker daemon to be ready... (${WAIT_COUNT}/${MAX_WAIT})"
+    sleep 1
+done
+log_message "Docker daemon is running."
+
+# Check if port 3306 is occupied by a non-Docker process
+log_message "Checking if port 3306 is available..."
+PORT_PID=$(ss -tlnp 2>/dev/null | grep ':3306 ' | grep -oP 'pid=\K[0-9]+' | head -1)
+if [ -n "$PORT_PID" ]; then
+    PORT_PROCESS=$(ps -p "$PORT_PID" -o comm= 2>/dev/null || echo "unknown")
+    # Check if the process holding the port is a Docker container process
+    if ! grep -q docker /proc/"$PORT_PID"/cgroup 2>/dev/null; then
+        log_message "WARNING: Port 3306 is in use by non-Docker process '${PORT_PROCESS}' (PID: ${PORT_PID})"
+        # Attempt to stop and disable native MySQL/MariaDB
+        if systemctl is-active --quiet mysql 2>/dev/null; then
+            log_message "Stopping and disabling native mysql service..."
+            systemctl stop mysql
+            systemctl disable mysql
+            log_message "Native mysql service stopped and disabled."
+        elif systemctl is-active --quiet mysqld 2>/dev/null; then
+            log_message "Stopping and disabling native mysqld service..."
+            systemctl stop mysqld
+            systemctl disable mysqld
+            log_message "Native mysqld service stopped and disabled."
+        elif systemctl is-active --quiet mariadb 2>/dev/null; then
+            log_message "Stopping and disabling native mariadb service..."
+            systemctl stop mariadb
+            systemctl disable mariadb
+            log_message "Native mariadb service stopped and disabled."
+        else
+            log_message "ERROR: Port 3306 is occupied by '${PORT_PROCESS}' (PID: ${PORT_PID}) but could not identify a known database service to stop."
+            log_message "Please free port 3306 manually and retry."
+            exit 1
+        fi
+        # Verify port is now free
+        sleep 2
+        if ss -tlnp 2>/dev/null | grep -q ':3306 '; then
+            log_message "ERROR: Port 3306 is still in use after stopping the service. Please free it manually."
+            exit 1
+        fi
+        log_message "Port 3306 is now available."
+    else
+        log_message "Port 3306 is in use by a Docker process — skipping conflict check."
+    fi
+else
+    log_message "Port 3306 is available."
+fi
+
 # Build and launch containers
 log_message "Building Docker images (no cache)..."
 docker compose build --no-cache
