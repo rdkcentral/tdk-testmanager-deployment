@@ -240,6 +240,91 @@ Then re-run the deployment script:
 
 ---
 
+<details>
+<summary><strong>GitHub Access Failure During Docker Build</strong></summary>
+
+**Error:**
+
+```
+Warning: Permanently added 'github.com' (ED25519) to the list of known hosts.
+git@github.com: Permission denied (publickey).
+fatal: Could not read from remote repository.
+```
+
+**Cause:**
+
+Your network may be restricting access to `github.com`. To verify, please run the following command from your Ubuntu VM:
+
+```bash
+git clone "https://github.com/rdkcentral/tdk-testmanager-frontend.git"
+```
+
+If you receive an error similar to the following, it confirms that a network restriction is in place:
+
+```
+fatal: unable to access '...': gnutls_handshake() failed: Error in the pull function.
+```
+
+**Resolution:**
+
+Please contact your organization's network team to verify whether any firewall rules are restricting access to `github.com`.
+
+</details>
+
+---
+
+<details>
+<summary><strong>Device Not Showing as Online (Green) in UI</strong></summary>
+
+**Cause:**
+
+An incorrect device configuration under the Device tab may prevent the DUT (Device Under Test) from appearing as online (green) in the UI.
+
+**Resolution:**
+
+- **For RDK Full Stack Image:**
+
+  Please ensure the **"Is Thunder Enabled"** checkbox is enabled in the device configuration.
+
+- **For RDK Vendor Image:**
+
+  Set the following configuration property to `yes` in the device configuration file:
+
+  ```ini
+  #**************************************************************************************
+  # Used for setting device status in Test Manager via SSH status
+  # By default this variable is set to "no" as it is required only for vendor image testing
+  #**************************************************************************************
+  SET_SSH_AS_DEVICE_STATUS = yes
+  ```
+
+**Debugging:**
+
+To verify the device status, please execute the following command inside the backend Docker container at the `/opt/tomcat/webapps/tdkservice/fileStore` location:
+
+- **For Thunder Enabled Devices:**
+
+  ```bash
+  python3 callthunderdevicestatus_cmndline.py <Device_IP> <Port> <Box_Name>
+  ```
+
+- **For Agent Enabled / Non-Thunder Enabled Devices:**
+
+  ```bash
+  python3 calldevicestatus_cmndline.py <Device_IP> <Port> <TestManager_IP> <Box_Name>
+  ```
+
+| Parameter        | Description                                                       |
+| ---------------- | ----------------------------------------------------------------- |
+| `Device_IP`      | IP address of the device                                          |
+| `Port`           | Thunder or Agent port of the device                               |
+| `Box_Name`       | Box name of the device as added in the TDK application            |
+| `TestManager_IP` | IP address of the server on which the TDK application is deployed |
+
+</details>
+
+---
+
 ## Miscellaneous
 
 ### Docker Architecture
@@ -551,5 +636,148 @@ Removes only unused Docker build cache. Compared to `docker builder prune -a`, t
 
 - Routine maintenance
 - Safe cleanup without impacting ongoing builds
+
+</details>
+
+---
+
+### Test Streams Hosting
+
+<details>
+<summary><strong>Host Test Stream Files on the Backend Server</strong></summary>
+
+After downloading all stream files from https://testassets.rdkcentral.com/ta.html, please follow the steps below to host them on the backend server.
+
+#### 1. Copy Stream Files into the Backend Container
+
+Access the backend Docker container:
+
+```bash
+docker exec -it tdk-backend bash
+```
+
+Copy the extracted stream files into the container:
+
+```bash
+docker cp <Streams> <Container_ID>:/opt/tomcat/webapps/teststreams/TDK_Clear_Test_Streams_Sunrise
+```
+
+Move the files into the appropriate directory:
+
+```bash
+mv TDK_Clear_Test_Streams_Q1_2023/* /opt/tomcat/webapps/teststreams/TDK_Clear_Test_Streams_Sunrise
+```
+
+#### 2. Update the Streams Path in Configuration
+
+Update the streams path in the **MediaValidationVariables** configuration file to point to the correct location.
+
+For example, if the streams are hosted at `/opt/tomcat/webapps/teststreams/TDK_Clear_Test_Streams_Sunrise` inside the container, set the following under `MediaValidationVariables`:
+
+```ini
+test_streams_base_path = "http://<TM_IP>:<port>/teststreams/TDK_Clear_Test_Streams_Sunrise/"
+```
+
+#### 3. Enable Streams Path in Nginx Configuration
+
+Add the following proxy configuration to the `nginx.conf` file in the `tdk-frontend` container.
+
+Enter the frontend container:
+
+```bash
+docker exec -it tdk-frontend bash
+```
+
+Navigate to `/etc/nginx/nginx.conf`, edit the file, and add the test streams location block:
+
+```nginx
+location /teststreams/ {
+    proxy_pass http://tdk-backend:8080/teststreams/;
+}
+```
+
+The updated Nginx server block should look like this:
+
+```nginx
+server {
+    listen       8443 ssl;
+    listen       [::]:8443 ssl;
+
+    root       /var/www/html;
+    add_header Cache-Control must-revalidate;
+    etag on;
+    index index.html index.htm index.nginx-debian.html;
+    try_files $uri $uri/ /index.html =404;
+
+    include /etc/nginx/default.d/*.conf;
+    ssl_certificate "/mnt/ssl_2025/testtools_rdkcentral_com__cert_bundle.cer";
+    ssl_certificate_key "/mnt/ssl_2025/testtools.rdkcentral.com.key";
+
+    location /tdkservice/ {
+        proxy_pass http://tdk-backend:8080/tdkservice/;
+    }
+
+    location /appupgrade/tdkUIUpgrade/ {
+        proxy_pass http://tdk-frontend:3000/tdkUIUpgrade/;
+    }
+
+    location /teststreams/ {
+        proxy_pass http://tdk-backend:8080/teststreams/;
+    }
+}
+```
+
+Restart Nginx to apply the changes:
+
+```bash
+nginx -s reload
+```
+
+</details>
+
+---
+
+### Lightning App Hosting
+
+<details>
+<summary><strong>Host Lightning Apps on the Backend Server</strong></summary>
+
+Please follow the steps below to copy and host Lightning apps on the backend server.
+
+#### 1. Download and Extract Lightning Apps
+
+Download `TDK_LightningApps_RDK8.tar` from https://testassets.rdkcentral.com/ta.html (under **TDK_Lightning_Apps**).
+
+#### 2. Copy Lightning Apps into the Backend Container
+
+Enter the backend Docker container:
+
+```bash
+docker exec -it tdk-backend bash
+```
+
+Copy the Lightning apps archive into the container and extract it:
+
+```bash
+docker cp <lightning_app> <Container_ID>:/opt/tomcat/webapps/tdkservice/fileStore/lightning-apps
+```
+
+#### 3. Copy Player-Specific Build Folders
+
+Move each player's build folder into the appropriate path:
+
+```bash
+mv TDK_LightningApps_RDK8/unifiedplayer/build /opt/tomcat/webapps/tdkservice/fileStore/lightning-apps/unifiedplayer
+```
+
+Repeat the above step for all remaining players (e.g., `animations`, `multianimation`, `objectanimations`).
+
+#### 4. Update the Lightning Apps Location in Configuration
+
+Update the Lightning apps location under **MediaValidationVariables**:
+
+```ini
+lightning_apps_loc = "http://<TM_IP>:<port>/tdkservice/fileStore/lightning-apps/"
+```
 
 </details>
