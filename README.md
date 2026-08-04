@@ -650,22 +650,22 @@ After downloading all stream files from https://testassets.rdkcentral.com/ta.htm
 
 #### 1. Copy Stream Files into the Backend Container
 
-Access the backend Docker container:
+From the **host machine**, copy the extracted stream files into the backend container:
+
+```bash
+docker cp <Streams> <Container_ID>:/opt/tomcat/webapps/teststreams/
+```
+
+Then, enter the backend container:
 
 ```bash
 docker exec -it tdk-backend bash
 ```
 
-Copy the extracted stream files into the container:
+Inside the container, move the files into the appropriate directory:
 
 ```bash
-docker cp <Streams> <Container_ID>:/opt/tomcat/webapps/teststreams/TDK_Clear_Test_Streams_Sunrise
-```
-
-Move the files into the appropriate directory:
-
-```bash
-mv TDK_Clear_Test_Streams_Q1_2023/* /opt/tomcat/webapps/teststreams/TDK_Clear_Test_Streams_Sunrise
+mv /opt/tomcat/webapps/teststreams/<Streams>/* /opt/tomcat/webapps/teststreams/TDK_Clear_Test_Streams_Sunrise/
 ```
 
 #### 2. Update the Streams Path in Configuration
@@ -700,8 +700,8 @@ The updated Nginx server block should look like this:
 
 ```nginx
 server {
-    listen       8443 ssl;
-    listen       [::]:8443 ssl;
+    listen       8443;
+    listen       [::]:8443;
 
     root       /var/www/html;
     add_header Cache-Control must-revalidate;
@@ -710,8 +710,6 @@ server {
     try_files $uri $uri/ /index.html =404;
 
     include /etc/nginx/default.d/*.conf;
-    ssl_certificate "/mnt/ssl_2025/testtools_rdkcentral_com__cert_bundle.cer";
-    ssl_certificate_key "/mnt/ssl_2025/testtools.rdkcentral.com.key";
 
     location /tdkservice/ {
         proxy_pass http://tdk-backend:8080/tdkservice/;
@@ -750,24 +748,24 @@ Download `TDK_LightningApps_RDK8.tar` from https://testassets.rdkcentral.com/ta.
 
 #### 2. Copy Lightning Apps into the Backend Container
 
-Enter the backend Docker container:
+From the **host machine**, copy the Lightning apps archive into the backend container:
+
+```bash
+docker cp TDK_LightningApps_RDK8 <Container_ID>:/opt/tomcat/webapps/tdkservice/fileStore/lightning-apps/
+```
+
+#### 3. Copy Player-Specific Build Folders
+
+Enter the backend container:
 
 ```bash
 docker exec -it tdk-backend bash
 ```
 
-Copy the Lightning apps archive into the container and extract it:
+Inside the container, move each player's build folder into the appropriate path:
 
 ```bash
-docker cp <lightning_app> <Container_ID>:/opt/tomcat/webapps/tdkservice/fileStore/lightning-apps
-```
-
-#### 3. Copy Player-Specific Build Folders
-
-Move each player's build folder into the appropriate path:
-
-```bash
-mv TDK_LightningApps_RDK8/unifiedplayer/build /opt/tomcat/webapps/tdkservice/fileStore/lightning-apps/unifiedplayer
+mv /opt/tomcat/webapps/tdkservice/fileStore/lightning-apps/TDK_LightningApps_RDK8/unifiedplayer/build /opt/tomcat/webapps/tdkservice/fileStore/lightning-apps/unifiedplayer
 ```
 
 Repeat the above step for all remaining players (e.g., `animations`, `multianimation`, `objectanimations`).
