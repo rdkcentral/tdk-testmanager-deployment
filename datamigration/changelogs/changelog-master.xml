@@ -9,6 +9,6 @@
      <include file="db/changelogs/release-M148/release-M148.xml"/>
      <include file="db/changelogs/release-M149/release-M149.xml"/>
      <include file="db/changelogs/release-M150/release-M150.xml"/>
-	 <include file="db/changelogs/release-M151/release-M151.xml"/>
+     <include file="db/changelogs/release-M151/release-M151.xml"/>
      <!-- Add more releases as needed -->
 </databaseChangeLog>
