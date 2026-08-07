@@ -187,6 +187,9 @@ CREATE TABLE `execution` (
   `test_type` varchar(255) DEFAULT NULL,
   `user` varchar(255) DEFAULT NULL,
   `execution_device_id` varchar(36) DEFAULT NULL,
+  `ci_build_file_name` varchar(255) DEFAULT NULL,
+  `ci_call_back_url` varchar(255) DEFAULT NULL,
+  `ci_job_id` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `UK_daf818tuho8hqf91twr8t7rep` (`name`),
   UNIQUE KEY `UK_icsk95mse53f5ggo62v7p1g87` (`execution_device_id`),
@@ -344,7 +347,6 @@ CREATE TABLE `execution_schedule` (
   `updated_at` datetime(6) DEFAULT NULL,
   `category` enum('RDKV','RDKB','RDKC','RDKV_RDKSERVICE') DEFAULT NULL,
   `ci_call_back_url` varchar(255) DEFAULT NULL,
-  `ci_image_version` varchar(255) DEFAULT NULL,
   `cron_end_time` datetime(6) DEFAULT NULL,
   `cron_expression` varchar(255) DEFAULT NULL,
   `cron_query` varchar(255) DEFAULT NULL,
@@ -364,6 +366,8 @@ CREATE TABLE `execution_schedule` (
   `test_suite` varchar(255) DEFAULT NULL,
   `test_type` varchar(255) DEFAULT NULL,
   `user` varchar(255) DEFAULT NULL,
+  `ci_build_file_name` varchar(255) DEFAULT NULL,
+  `ci_job_id` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -965,4 +969,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-08-06 15:35:17
+-- Dump completed on 2026-08-07  7:16:31
