@@ -325,6 +325,61 @@ To verify the device status, please execute the following command inside the bac
 
 ---
 
+<details>
+<summary><strong>Script Execution Fails with <code>URLError: Connection timed out</code> (tdklib.py)</strong></summary>
+
+**Error:**
+
+Observed in the execution logs after logging in to the application and running a script:
+
+```
+-ERROR : Unable to access url for getting device port numbers !!!
+-ERROR : Unable to connect.. Please check box is up and agent is running.....
+
+File "/opt/tomcat/webapps/tdkservice/fileStore/tdklib.py", line 1004, in configureTestCase
+    loadstring = urllib.request.urlopen(url).read()
+urllib.error.URLError: <urlopen error [Errno 110] Connection timed out>
+```
+
+**Cause:**
+
+The backend container is unable to reach the TDK service URL configured in `tm.config`. This is typically caused by either a misconfigured `tmURL` value or by the host firewall (`ufw` / `firewalld`) blocking outbound traffic from the backend container.
+
+**Diagnosis:**
+
+1. Verify that `tmURL` in `tm.config` is set correctly (host IP and port must match the deployed TDK service).
+2. From inside the `tdk-backend` container, run:
+
+   ```bash
+   curl "http://<TestManager_IP>:8443/tdkservice/api/v1/version/getTDKServiceVersion"
+   ```
+
+   - If it returns the TDK version, the URL is reachable.
+   - If it times out, a firewall is most likely blocking the request.
+
+3. On the host, check the firewall status:
+
+   ```bash
+   sudo ufw status
+   sudo systemctl status firewalld
+   ```
+
+**Resolution:**
+
+If either `ufw` or `firewalld` is active, disable them and retry:
+
+```bash
+sudo ufw disable
+sudo systemctl stop firewalld
+sudo systemctl disable firewalld
+```
+
+After disabling the firewall, re-run the `curl` command and the script execution — both should now succeed.
+
+</details>
+
+---
+
 ## Miscellaneous
 
 ### Docker Architecture
