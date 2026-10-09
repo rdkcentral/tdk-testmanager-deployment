@@ -49,6 +49,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     default-libmysqlclient-dev \
     gcc \
     supervisor \
+    file=1:5.45-3build1 \
+    bc=1.07.1-3ubuntu4 \
  && rm -rf /var/lib/apt/lists/*
 
 # Set Python 3.12 as default
