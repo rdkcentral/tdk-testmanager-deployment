@@ -11,5 +11,6 @@
      <include file="db/changelogs/release-M150/release-M150.xml"/>
      <include file="db/changelogs/release-M151/release-M151.xml"/>
 	 <include file="db/changelogs/release-M152/release-M152.xml"/>
+	 <include file="db/changelogs/release-M153/release-M153.xml"/>
      <!-- Add more releases as needed -->
 </databaseChangeLog>
