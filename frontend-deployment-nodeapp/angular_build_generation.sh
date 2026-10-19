@@ -57,8 +57,14 @@ APP_NODE_API_URL="$4"
 echo "API_URL: '${APP_API_URL:-<not provided, keeping repo default>}'"
 echo "NODE_API_URL: '${APP_NODE_API_URL:-<not provided, keeping repo default>}'"
 
-# Create working directory with release tag at /mnt/AngularBuild/
-WORK_DIR="/mnt/AngularBuild/${RELEASE_TAG}"
+# Use a unique temporary working directory under a fixed root so a tainted
+# release tag cannot escape the build root or collide with concurrent jobs.
+BUILD_ROOT="/mnt/AngularBuild"
+mkdir -p "$BUILD_ROOT"
+WORK_DIR="${5:-$(mktemp -d "${BUILD_ROOT}/build.XXXXXX") }"
+WORK_DIR="$(printf '%s' "$WORK_DIR" | xargs)"
+trap 'rm -rf "$WORK_DIR"' EXIT
+
 echo "Creating working directory: $WORK_DIR"
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR"
@@ -68,11 +74,18 @@ frontendRepo="https://github.com/rdkcentral/tdk-testmanager-frontend.git"
 frontendDir="tdk-testmanager-frontend"
 
 # Clone frontend repo
-echo "Cloning frontend repository..."
+# Fail fast if the exact requested branch or tag is unavailable; do not silently
+# build another ref under the user's requested release label.
+echo "Cloning frontend repository for release: $RELEASE_TAG"
 if [ -d "$frontendDir" ]; then rm -rf "$frontendDir"; fi
+if ! git ls-remote --exit-code --heads --tags "$frontendRepo" "$RELEASE_TAG" >/dev/null 2>&1; then
+    echo "ERROR: Requested release '$RELEASE_TAG' was not found in the frontend repository."
+    exit 1
+fi
+
 git clone -b "$RELEASE_TAG" "$frontendRepo" || {
-    echo "Warning: Branch $RELEASE_TAG not found in frontend repo, trying main..."
-    git clone -b "main" "$frontendRepo"
+    echo "ERROR: Failed to clone the requested release '$RELEASE_TAG'."
+    exit 1
 }
 
 if [ ! -d "$frontendDir" ]; then

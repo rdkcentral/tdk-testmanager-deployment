@@ -27,11 +27,103 @@ http://www.apache.org/licenses/LICENSE-2.0
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
+const crypto = require("crypto");
 const { exec, spawn } = require("child_process");
 const fs = require("fs");
 
 const app = express();
 const port = 3000;
+const MAX_ACTIVE_UPGRADE_JOBS = 1;
+const activeUpgradeJobs = new Set();
+const JWT_SECRET = process.env.JWT_SECRET || "";
+
+function decodeBase64Url(value) {
+  return Buffer.from(
+    value.replace(/-/g, "+").replace(/_/g, "/"),
+    "base64",
+  ).toString("utf8");
+}
+
+function getJwtPayload(token) {
+  if (!token || typeof token !== "string") {
+    throw new Error("Missing JWT token");
+  }
+
+  const parts = token.split(".");
+  if (parts.length !== 3) {
+    throw new Error("Invalid JWT format");
+  }
+
+  const payload = JSON.parse(decodeBase64Url(parts[1]));
+  const signingInput = `${parts[0]}.${parts[1]}`;
+  const expectedSignature = crypto
+    .createHmac("sha256", JWT_SECRET)
+    .update(signingInput)
+    .digest();
+  const actualSignature = Buffer.from(parts[2], "base64");
+
+  if (expectedSignature.length !== actualSignature.length) {
+    throw new Error("Invalid JWT signature");
+  }
+
+  if (!crypto.timingSafeEqual(expectedSignature, actualSignature)) {
+    throw new Error("Invalid JWT signature");
+  }
+
+  if (payload.exp && Number(payload.exp) < Math.floor(Date.now() / 1000)) {
+    throw new Error("JWT expired");
+  }
+
+  return payload;
+}
+
+function requireDeploymentAdmin(req, res, next) {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  if (!JWT_SECRET) {
+    console.error(
+      "JWT_SECRET is not configured for frontend deployment server",
+    );
+    return res.status(500).json({ error: "Deployment auth is not configured" });
+  }
+
+  try {
+    const payload = getJwtPayload(authHeader.replace(/^Bearer\s+/i, ""));
+    const roleName = payload.userRoleName || payload.role || "";
+    const authorities = payload.authorities;
+    const roles = Array.isArray(authorities)
+      ? authorities.join(",")
+      : typeof authorities === "string"
+        ? authorities
+        : "";
+    const activeRoles = [roleName, roles].join(",").toLowerCase();
+
+    if (!activeRoles.includes("admin")) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+
+    req.user = payload;
+    next();
+  } catch (error) {
+    console.error("Deployment auth failure:", error.message);
+    return res.status(401).json({ error: "Invalid or expired token" });
+  }
+}
+
+function tryAcquireUpgradeJob() {
+  if (activeUpgradeJobs.size >= MAX_ACTIVE_UPGRADE_JOBS) {
+    return false;
+  }
+  activeUpgradeJobs.add("frontend-upgrade");
+  return true;
+}
+
+function releaseUpgradeJob() {
+  activeUpgradeJobs.delete("frontend-upgrade");
+}
 
 // CORS Middleware - Allow requests from Angular frontend
 app.use((req, res, next) => {
@@ -82,6 +174,8 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+app.use("/tdkUIUpgrade", requireDeploymentAdmin);
 
 // ========== ✅ API 1: Upload and Extract Build ==========
 app.post("/tdkUIUpgrade/uploadBuild", upload.single("build"), (req, res) => {
@@ -210,7 +304,172 @@ app.get("/tdkUIUpgrade/deploymentLog", (req, res) => {
 // In-memory store for active build generation executions
 const buildExecutions = new Map();
 
+function writeSseEvent(res, eventName, payload) {
+  if (!res || res.destroyed || res.writableEnded) {
+    return;
+  }
+
+  res.write(`event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`);
+}
+
+function enqueueExecutionEvent(metadata, eventName, payload) {
+  metadata.outputBuffer = metadata.outputBuffer || [];
+  metadata.outputBuffer.push({ event: eventName, payload });
+
+  if (!metadata.subscribers) {
+    metadata.subscribers = new Set();
+  }
+
+  metadata.subscribers.forEach((subscriber) => {
+    writeSseEvent(subscriber, eventName, payload);
+  });
+}
+
+function startAngularBuildExecution(executionId, metadata) {
+  if (metadata.process) {
+    return metadata.process;
+  }
+
+  metadata.outputBuffer = metadata.outputBuffer || [];
+  metadata.subscribers = metadata.subscribers || new Set();
+
+  let scriptPath = "";
+  const possiblePaths = [
+    path.resolve(__dirname, "angular_build_generation.sh"),
+    path.resolve("./angular_build_generation.sh"),
+    "/opt/tomcat/webapps/tdkservice/fileStore/angular_build_generation.sh",
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      scriptPath = p;
+      break;
+    }
+  }
+
+  if (!scriptPath) {
+    metadata.status = "FAILED";
+    const payload = {
+      status: "ERROR",
+      message: "Build generation script not found",
+    };
+    enqueueExecutionEvent(metadata, "error", payload);
+    enqueueExecutionEvent(metadata, "complete", {
+      ...payload,
+      exitCode: 127,
+      releaseTag: metadata.releaseTag,
+    });
+    buildExecutions.delete(executionId);
+    return null;
+  }
+
+  const logDir = "/mnt/AngularBuild/logs";
+  fs.mkdirSync(logDir, { recursive: true });
+  const logTimestamp = new Date()
+    .toISOString()
+    .replace(/[:T]/g, "_")
+    .split(".")[0];
+  const logFilePath = path.join(logDir, `${logTimestamp}_AngularBuild.log`);
+  const logStream = fs.createWriteStream(logFilePath, { flags: "a" });
+
+  const child = spawn(
+    "bash",
+    [
+      scriptPath,
+      metadata.releaseTag,
+      metadata.upgradeDir,
+      metadata.apiUrl || "",
+      metadata.nodeApiUrl || "",
+      metadata.workDir || path.join("/mnt/AngularBuild", "fallback-build"),
+    ],
+    {
+      cwd: path.dirname(scriptPath),
+    },
+  );
+
+  metadata.process = child;
+  let stdoutBuffer = "";
+  let stderrBuffer = "";
+
+  function emitLogLine(line) {
+    if (!line || !line.trim()) {
+      return;
+    }
+
+    enqueueExecutionEvent(metadata, "log", { message: line });
+    logStream.write(line + "\n");
+  }
+
+  child.stdout.on("data", (data) => {
+    stdoutBuffer += data.toString();
+    const lines = stdoutBuffer.split("\n");
+    stdoutBuffer = lines.pop();
+    lines.forEach((line) => emitLogLine(line));
+  });
+
+  child.stderr.on("data", (data) => {
+    stderrBuffer += data.toString();
+    const lines = stderrBuffer.split("\n");
+    stderrBuffer = lines.pop();
+    lines.forEach((line) => emitLogLine(line));
+  });
+
+  child.on("close", (exitCode) => {
+    if (stdoutBuffer.trim()) {
+      emitLogLine(stdoutBuffer.trim());
+    }
+    if (stderrBuffer.trim()) {
+      emitLogLine(stderrBuffer.trim());
+    }
+
+    logStream.end();
+
+    metadata.status = exitCode === 0 ? "COMPLETED" : "FAILED";
+    const completionPayload = {
+      status: exitCode === 0 ? "SUCCESS" : "FAILED",
+      exitCode,
+      message:
+        exitCode === 0
+          ? "Angular build generation completed successfully"
+          : `Angular build generation failed with exit code: ${exitCode}`,
+      releaseTag: metadata.releaseTag,
+      ...(exitCode === 0 ? { upgradeDir: metadata.upgradeDir } : {}),
+    };
+
+    enqueueExecutionEvent(metadata, "complete", completionPayload);
+    metadata.process = null;
+
+    metadata.subscribers.forEach((subscriber) => {
+      subscriber.end();
+    });
+    metadata.subscribers.clear();
+    releaseUpgradeJob();
+    buildExecutions.delete(executionId);
+  });
+
+  child.on("error", (err) => {
+    console.error(`[ERROR] Build generation process error: ${err.message}`);
+    metadata.status = "FAILED";
+    const payload = { status: "ERROR", message: err.message };
+    enqueueExecutionEvent(metadata, "error", payload);
+    logStream.end();
+    metadata.process = null;
+    metadata.subscribers.forEach((subscriber) => subscriber.end());
+    metadata.subscribers.clear();
+    releaseUpgradeJob();
+    buildExecutions.delete(executionId);
+  });
+
+  return child;
+}
+
 app.post("/tdkUIUpgrade/angularBuildGeneration", (req, res) => {
+  if (!tryAcquireUpgradeJob()) {
+    return res.status(429).json({
+      error: `Another deployment job is already running. Please wait for it to finish.`,
+    });
+  }
+
   const releaseTag = req.query.releaseTag;
 
   if (!releaseTag || releaseTag.trim() === "") {
@@ -227,22 +486,39 @@ app.post("/tdkUIUpgrade/angularBuildGeneration", (req, res) => {
     .split(".")[0];
   const upgradeDir = `/mnt/appUpgrade/AngularBuild_${timestamp}`;
 
-  // Derive the correct backend/API URL and Node API URL so the built app
-  // points to this deployment's actual host instead of the repo defaults.
-  const apiUrl = process.env.BACKEND_URL || "";
-  const nodeApiUrl = `${req.protocol}://${req.get("host")}/`;
+  const buildRoot = "/mnt/AngularBuild";
+  fs.mkdirSync(buildRoot, { recursive: true });
+  const workDir = fs.mkdtempSync(path.join(buildRoot, "build-"));
 
-  // Store execution metadata
-  buildExecutions.set(executionId, {
+  const apiUrl = process.env.BACKEND_URL || "";
+  const configuredNodeApiUrl =
+    process.env.NODE_API_URL || process.env.PUBLIC_APPUPGRADE_URL || "";
+  const nodeApiUrl = configuredNodeApiUrl
+    ? configuredNodeApiUrl.replace(/\/$/, "") + "/"
+    : `${req.protocol}://${req.get("host")}/appupgrade/`;
+
+  const metadata = {
     executionId,
     releaseTag,
     upgradeDir,
+    workDir,
     apiUrl,
     nodeApiUrl,
     status: "RUNNING",
     process: null,
     createdAt: new Date(),
-  });
+    outputBuffer: [],
+    subscribers: new Set(),
+  };
+
+  buildExecutions.set(executionId, metadata);
+
+  const child = startAngularBuildExecution(executionId, metadata);
+  if (!child) {
+    return res.status(500).json({
+      error: "Angular build generation could not be started",
+    });
+  }
 
   res.json({
     data: {
@@ -271,162 +547,26 @@ app.get("/tdkUIUpgrade/angularBuildGeneration/logs", (req, res) => {
 
   const metadata = buildExecutions.get(executionId);
 
-  // Set SSE headers
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
   res.flushHeaders();
 
-  // Send initial status
+  metadata.subscribers = metadata.subscribers || new Set();
+  metadata.outputBuffer = metadata.outputBuffer || [];
+
   res.write(
     `event: status\ndata: ${JSON.stringify({ message: "Starting Angular build generation for release: " + metadata.releaseTag })}\n\n`,
   );
 
-  // Resolve script path - prefer the Node app directory so the runtime
-  // can find the script immediately after deployment.
-  let scriptPath = "";
-  const possiblePaths = [
-    path.resolve(__dirname, "angular_build_generation.sh"),
-    path.resolve("./angular_build_generation.sh"),
-    "/opt/tomcat/webapps/tdkservice/fileStore/angular_build_generation.sh",
-  ];
-
-  for (const p of possiblePaths) {
-    if (fs.existsSync(p)) {
-      scriptPath = p;
-      break;
-    }
-  }
-
-  if (!scriptPath) {
-    res.write(
-      `event: error\ndata: ${JSON.stringify({ status: "ERROR", message: "Build generation script not found" })}\n\n`,
-    );
-    res.end();
-    buildExecutions.delete(executionId);
-    return;
-  }
-
-  // Create log directory
-  const logDir = "/mnt/AngularBuild/logs";
-  fs.mkdirSync(logDir, { recursive: true });
-  const logTimestamp = new Date()
-    .toISOString()
-    .replace(/[:T]/g, "_")
-    .split(".")[0];
-  const logFilePath = path.join(logDir, `${logTimestamp}_AngularBuild.log`);
-  const logStream = fs.createWriteStream(logFilePath, { flags: "a" });
-
-  // Spawn the build script
-  const child = spawn(
-    "bash",
-    [
-      scriptPath,
-      metadata.releaseTag,
-      metadata.upgradeDir,
-      metadata.apiUrl || "",
-      metadata.nodeApiUrl || "",
-    ],
-    {
-      cwd: path.dirname(scriptPath),
-    },
-  );
-
-  metadata.process = child;
-
-  // Stream stdout line by line
-  let stdoutBuffer = "";
-  child.stdout.on("data", (data) => {
-    stdoutBuffer += data.toString();
-    const lines = stdoutBuffer.split("\n");
-    stdoutBuffer = lines.pop(); // Keep incomplete line in buffer
-    lines.forEach((line) => {
-      if (line.trim()) {
-        res.write(`event: log\ndata: ${JSON.stringify({ message: line })}\n\n`);
-        logStream.write(line + "\n");
-      }
-    });
+  metadata.subscribers.add(res);
+  metadata.outputBuffer.forEach((entry) => {
+    writeSseEvent(res, entry.event, entry.payload);
   });
 
-  // Stream stderr as log lines
-  let stderrBuffer = "";
-  child.stderr.on("data", (data) => {
-    stderrBuffer += data.toString();
-    const lines = stderrBuffer.split("\n");
-    stderrBuffer = lines.pop();
-    lines.forEach((line) => {
-      if (line.trim()) {
-        res.write(`event: log\ndata: ${JSON.stringify({ message: line })}\n\n`);
-        logStream.write(line + "\n");
-      }
-    });
-  });
-
-  child.on("close", (exitCode) => {
-    // Flush remaining buffer
-    if (stdoutBuffer.trim()) {
-      res.write(
-        `event: log\ndata: ${JSON.stringify({ message: stdoutBuffer })}\n\n`,
-      );
-      logStream.write(stdoutBuffer + "\n");
-    }
-    if (stderrBuffer.trim()) {
-      res.write(
-        `event: log\ndata: ${JSON.stringify({ message: stderrBuffer })}\n\n`,
-      );
-      logStream.write(stderrBuffer + "\n");
-    }
-
-    logStream.end();
-
-    if (exitCode === 0) {
-      metadata.status = "COMPLETED";
-      res.write(
-        `event: complete\ndata: ${JSON.stringify({
-          status: "SUCCESS",
-          exitCode: exitCode,
-          message: "Angular build generation completed successfully",
-          releaseTag: metadata.releaseTag,
-          upgradeDir: metadata.upgradeDir,
-        })}\n\n`,
-      );
-    } else {
-      metadata.status = "FAILED";
-      res.write(
-        `event: complete\ndata: ${JSON.stringify({
-          status: "FAILED",
-          exitCode: exitCode,
-          message:
-            "Angular build generation failed with exit code: " + exitCode,
-          releaseTag: metadata.releaseTag,
-        })}\n\n`,
-      );
-    }
-
-    res.end();
-    buildExecutions.delete(executionId);
-  });
-
-  child.on("error", (err) => {
-    console.error(`[ERROR] Build generation process error: ${err.message}`);
-    res.write(
-      `event: error\ndata: ${JSON.stringify({ status: "ERROR", message: err.message })}\n\n`,
-    );
-    res.end();
-    logStream.end();
-    buildExecutions.delete(executionId);
-  });
-
-  // Handle client disconnect
-  req.on("close", () => {
-    if (child && !child.killed) {
-      child.kill("SIGTERM");
-      setTimeout(() => {
-        if (!child.killed) child.kill("SIGKILL");
-      }, 5000);
-    }
-    logStream.end();
+  res.on("close", () => {
+    metadata.subscribers.delete(res);
   });
 });
 
