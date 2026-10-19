@@ -315,6 +315,15 @@ function pruneTerminalExecutions() {
   }
 }
 
+function scheduleTerminalExecutionCleanup(executionId) {
+  const timeout = setTimeout(() => {
+    terminalExecutions.delete(executionId);
+  }, TERMINAL_EXECUTION_TTL_MS);
+
+  timeout.unref();
+  return timeout;
+}
+
 function writeSseEvent(res, eventName, payload) {
   if (!res || res.destroyed || res.writableEnded) {
     return;
@@ -336,7 +345,53 @@ function enqueueExecutionEvent(metadata, eventName, payload) {
   });
 }
 
-function finalizeBuildExecution(executionId, metadata, outcome) {
+async function terminateBuildProcessGroup(metadata, signal = "SIGTERM") {
+  const child = metadata && metadata.process;
+  if (!child) {
+    return true;
+  }
+
+  if (child.exitCode !== null || child.signalCode) {
+    return true;
+  }
+
+  try {
+    const targetPid = process.platform === "win32" ? child.pid : -child.pid;
+    process.kill(targetPid, signal);
+  } catch (error) {
+    if (error && error.code !== "ESRCH") {
+      console.warn(
+        "Could not terminate Angular build process group:",
+        error.message,
+      );
+    }
+  }
+
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < 5000) {
+    if (child.exitCode !== null || child.signalCode) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+
+  try {
+    const targetPid = process.platform === "win32" ? child.pid : -child.pid;
+    process.kill(targetPid, "SIGKILL");
+  } catch (error) {
+    if (error && error.code !== "ESRCH") {
+      console.warn(
+        "Could not force terminate Angular build process group:",
+        error.message,
+      );
+    }
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  return child.exitCode !== null || child.signalCode !== null;
+}
+
+async function finalizeBuildExecution(executionId, metadata, outcome) {
   if (!metadata || metadata.finalized) {
     return;
   }
@@ -344,13 +399,7 @@ function finalizeBuildExecution(executionId, metadata, outcome) {
   metadata.finalized = true;
   metadata.expiresAt = Date.now() + TERMINAL_EXECUTION_TTL_MS;
 
-  if (metadata.process && !metadata.process.killed) {
-    try {
-      metadata.process.kill("SIGTERM");
-    } catch (error) {
-      console.warn("Could not terminate Angular build child:", error.message);
-    }
-  }
+  await terminateBuildProcessGroup(metadata, "SIGTERM");
 
   if (metadata.logStream && !metadata.logStream.closed) {
     try {
@@ -386,6 +435,9 @@ function finalizeBuildExecution(executionId, metadata, outcome) {
   releaseUpgradeJob();
   buildExecutions.delete(executionId);
   terminalExecutions.set(executionId, metadata);
+  if (!metadata.cleanupTimer) {
+    metadata.cleanupTimer = scheduleTerminalExecutionCleanup(executionId);
+  }
   pruneTerminalExecutions();
 }
 
@@ -468,10 +520,13 @@ function startAngularBuildExecution(executionId, metadata) {
     ],
     {
       cwd: path.dirname(scriptPath),
+      detached: process.platform !== "win32",
+      stdio: ["ignore", "pipe", "pipe"],
     },
   );
 
   metadata.process = child;
+  metadata.processGroupId = child.pid;
   let stdoutBuffer = "";
   let stderrBuffer = "";
 
@@ -635,6 +690,23 @@ app.get("/tdkUIUpgrade/angularBuildGeneration/logs", (req, res) => {
   }
 
   const metadata = activeMetadata || terminalMetadata;
+
+  if (
+    metadata &&
+    metadata.finalized &&
+    metadata.expiresAt &&
+    Date.now() >= metadata.expiresAt
+  ) {
+    terminalExecutions.delete(executionId);
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.write(
+      `event: error\ndata: ${JSON.stringify({ message: "Execution not found" })}\n\n`,
+    );
+    res.end();
+    return;
+  }
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
