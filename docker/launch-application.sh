@@ -53,7 +53,6 @@ log_message() {
 
 log_message "Starting TDK Test Manager application setup..."
 
-
 # Update release tag if argument provided
 if [[ -n "$RELEASE_TAG_ARG" ]]; then
     update_release_tag "$RELEASE_TAG_ARG"

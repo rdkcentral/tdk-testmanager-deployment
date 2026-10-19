@@ -27,7 +27,6 @@ http://www.apache.org/licenses/LICENSE-2.0
 const express = require("express");
 const multer = require("multer");
 const path = require("path");
-const crypto = require("crypto");
 const { exec, spawn } = require("child_process");
 const fs = require("fs");
 
@@ -35,83 +34,6 @@ const app = express();
 const port = 3000;
 const MAX_ACTIVE_UPGRADE_JOBS = 1;
 const activeUpgradeJobs = new Set();
-const JWT_SECRET = process.env.JWT_SECRET || "";
-
-function decodeBase64Url(value) {
-  return Buffer.from(
-    value.replace(/-/g, "+").replace(/_/g, "/"),
-    "base64",
-  ).toString("utf8");
-}
-
-function getJwtPayload(token) {
-  if (!token || typeof token !== "string") {
-    throw new Error("Missing JWT token");
-  }
-
-  const parts = token.split(".");
-  if (parts.length !== 3) {
-    throw new Error("Invalid JWT format");
-  }
-
-  const payload = JSON.parse(decodeBase64Url(parts[1]));
-  const signingInput = `${parts[0]}.${parts[1]}`;
-  const expectedSignature = crypto
-    .createHmac("sha256", JWT_SECRET)
-    .update(signingInput)
-    .digest();
-  const actualSignature = Buffer.from(parts[2], "base64");
-
-  if (expectedSignature.length !== actualSignature.length) {
-    throw new Error("Invalid JWT signature");
-  }
-
-  if (!crypto.timingSafeEqual(expectedSignature, actualSignature)) {
-    throw new Error("Invalid JWT signature");
-  }
-
-  if (payload.exp && Number(payload.exp) < Math.floor(Date.now() / 1000)) {
-    throw new Error("JWT expired");
-  }
-
-  return payload;
-}
-
-function requireDeploymentAdmin(req, res, next) {
-  const authHeader = req.headers.authorization || req.headers.Authorization;
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ error: "Authentication required" });
-  }
-
-  if (!JWT_SECRET) {
-    console.error(
-      "JWT_SECRET is not configured for frontend deployment server",
-    );
-    return res.status(500).json({ error: "Deployment auth is not configured" });
-  }
-
-  try {
-    const payload = getJwtPayload(authHeader.replace(/^Bearer\s+/i, ""));
-    const roleName = payload.userRoleName || payload.role || "";
-    const authorities = payload.authorities;
-    const roles = Array.isArray(authorities)
-      ? authorities.join(",")
-      : typeof authorities === "string"
-        ? authorities
-        : "";
-    const activeRoles = [roleName, roles].join(",").toLowerCase();
-
-    if (!activeRoles.includes("admin")) {
-      return res.status(403).json({ error: "Admin access required" });
-    }
-
-    req.user = payload;
-    next();
-  } catch (error) {
-    console.error("Deployment auth failure:", error.message);
-    return res.status(401).json({ error: "Invalid or expired token" });
-  }
-}
 
 function tryAcquireUpgradeJob() {
   if (activeUpgradeJobs.size >= MAX_ACTIVE_UPGRADE_JOBS) {
@@ -174,8 +96,6 @@ const upload = multer({
     cb(null, true);
   },
 });
-
-app.use("/tdkUIUpgrade", requireDeploymentAdmin);
 
 // ========== ✅ API 1: Upload and Extract Build ==========
 app.post("/tdkUIUpgrade/uploadBuild", upload.single("build"), (req, res) => {
@@ -646,20 +566,21 @@ function startAngularBuildExecution(executionId, metadata) {
 }
 
 app.post("/tdkUIUpgrade/angularBuildGeneration", async (req, res) => {
+  const rawReleaseTag = req.query.releaseTag;
+
+  if (typeof rawReleaseTag !== "string" || rawReleaseTag.trim() === "") {
+    return res
+      .status(400)
+      .json({ error: "Release tag or branch name is required" });
+  }
+
   if (!tryAcquireUpgradeJob()) {
     return res.status(429).json({
       error: `Another deployment job is already running. Please wait for it to finish.`,
     });
   }
 
-  const releaseTag = req.query.releaseTag;
-
-  if (!releaseTag || releaseTag.trim() === "") {
-    releaseUpgradeJob();
-    return res
-      .status(400)
-      .json({ error: "Release tag or branch name is required" });
-  }
+  const releaseTag = rawReleaseTag.trim();
 
   const executionId =
     Date.now().toString(36) + "-" + Math.random().toString(36).substr(2, 9);

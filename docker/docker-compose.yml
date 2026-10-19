@@ -79,7 +79,6 @@ services:
       - "8443:8443" # nginx exposes Angular here
     environment:
       BACKEND_URL: ${BACKEND_URL} # Optional, for reference:
-      JWT_SECRET: ${JWT_SECRET}
     volumes:
       - frontend-html:/var/www/html
     networks:
