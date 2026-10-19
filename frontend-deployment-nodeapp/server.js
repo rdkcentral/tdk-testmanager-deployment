@@ -303,6 +303,17 @@ app.get("/tdkUIUpgrade/deploymentLog", (req, res) => {
 // ========== ✅ API 4: Start Angular Build Generation ==========
 // In-memory store for active build generation executions
 const buildExecutions = new Map();
+const terminalExecutions = new Map();
+const TERMINAL_EXECUTION_TTL_MS = 5 * 60 * 1000;
+
+function pruneTerminalExecutions() {
+  const now = Date.now();
+  for (const [executionId, metadata] of terminalExecutions.entries()) {
+    if (!metadata.expiresAt || now >= metadata.expiresAt) {
+      terminalExecutions.delete(executionId);
+    }
+  }
+}
 
 function writeSseEvent(res, eventName, payload) {
   if (!res || res.destroyed || res.writableEnded) {
@@ -323,6 +334,59 @@ function enqueueExecutionEvent(metadata, eventName, payload) {
   metadata.subscribers.forEach((subscriber) => {
     writeSseEvent(subscriber, eventName, payload);
   });
+}
+
+function finalizeBuildExecution(executionId, metadata, outcome) {
+  if (!metadata || metadata.finalized) {
+    return;
+  }
+
+  metadata.finalized = true;
+  metadata.expiresAt = Date.now() + TERMINAL_EXECUTION_TTL_MS;
+
+  if (metadata.process && !metadata.process.killed) {
+    try {
+      metadata.process.kill("SIGTERM");
+    } catch (error) {
+      console.warn("Could not terminate Angular build child:", error.message);
+    }
+  }
+
+  if (metadata.logStream && !metadata.logStream.closed) {
+    try {
+      metadata.logStream.end();
+    } catch (error) {
+      console.warn("Could not close Angular build log stream:", error.message);
+    }
+  }
+
+  const subscribers = metadata.subscribers
+    ? Array.from(metadata.subscribers)
+    : [];
+
+  const terminalEvents = [];
+  if (outcome && outcome.error) {
+    terminalEvents.push({ event: "error", payload: outcome.error });
+  }
+
+  if (outcome && outcome.complete) {
+    terminalEvents.push({ event: "complete", payload: outcome.complete });
+  }
+
+  metadata.outputBuffer = metadata.outputBuffer || [];
+  terminalEvents.forEach(({ event, payload }) => {
+    metadata.outputBuffer.push({ event, payload });
+    subscribers.forEach((subscriber) => {
+      writeSseEvent(subscriber, event, payload);
+    });
+  });
+
+  subscribers.forEach((subscriber) => subscriber.end());
+  metadata.subscribers.clear();
+  releaseUpgradeJob();
+  buildExecutions.delete(executionId);
+  terminalExecutions.set(executionId, metadata);
+  pruneTerminalExecutions();
 }
 
 function startAngularBuildExecution(executionId, metadata) {
@@ -353,13 +417,14 @@ function startAngularBuildExecution(executionId, metadata) {
       status: "ERROR",
       message: "Build generation script not found",
     };
-    enqueueExecutionEvent(metadata, "error", payload);
-    enqueueExecutionEvent(metadata, "complete", {
-      ...payload,
-      exitCode: 127,
-      releaseTag: metadata.releaseTag,
+    finalizeBuildExecution(executionId, metadata, {
+      error: payload,
+      complete: {
+        ...payload,
+        exitCode: 127,
+        releaseTag: metadata.releaseTag,
+      },
     });
-    buildExecutions.delete(executionId);
     return null;
   }
 
@@ -371,6 +436,25 @@ function startAngularBuildExecution(executionId, metadata) {
     .split(".")[0];
   const logFilePath = path.join(logDir, `${logTimestamp}_AngularBuild.log`);
   const logStream = fs.createWriteStream(logFilePath, { flags: "a" });
+  metadata.logStream = logStream;
+
+  logStream.on("error", (err) => {
+    console.error(`[ERROR] Angular build log stream error: ${err.message}`);
+    metadata.status = "FAILED";
+    finalizeBuildExecution(executionId, metadata, {
+      error: {
+        status: "ERROR",
+        message: `Build log write failed: ${err.message}`,
+      },
+      complete: {
+        status: "FAILED",
+        exitCode: 1,
+        message:
+          "Angular build generation failed because the log stream could not be written",
+        releaseTag: metadata.releaseTag,
+      },
+    });
+  });
 
   const child = spawn(
     "bash",
@@ -415,14 +499,16 @@ function startAngularBuildExecution(executionId, metadata) {
   });
 
   child.on("close", (exitCode) => {
+    if (metadata.finalized) {
+      return;
+    }
+
     if (stdoutBuffer.trim()) {
       emitLogLine(stdoutBuffer.trim());
     }
     if (stderrBuffer.trim()) {
       emitLogLine(stderrBuffer.trim());
     }
-
-    logStream.end();
 
     metadata.status = exitCode === 0 ? "COMPLETED" : "FAILED";
     const completionPayload = {
@@ -436,28 +522,27 @@ function startAngularBuildExecution(executionId, metadata) {
       ...(exitCode === 0 ? { upgradeDir: metadata.upgradeDir } : {}),
     };
 
-    enqueueExecutionEvent(metadata, "complete", completionPayload);
-    metadata.process = null;
-
-    metadata.subscribers.forEach((subscriber) => {
-      subscriber.end();
+    finalizeBuildExecution(executionId, metadata, {
+      complete: completionPayload,
     });
-    metadata.subscribers.clear();
-    releaseUpgradeJob();
-    buildExecutions.delete(executionId);
   });
 
   child.on("error", (err) => {
+    if (metadata.finalized) {
+      return;
+    }
+
     console.error(`[ERROR] Build generation process error: ${err.message}`);
     metadata.status = "FAILED";
-    const payload = { status: "ERROR", message: err.message };
-    enqueueExecutionEvent(metadata, "error", payload);
-    logStream.end();
-    metadata.process = null;
-    metadata.subscribers.forEach((subscriber) => subscriber.end());
-    metadata.subscribers.clear();
-    releaseUpgradeJob();
-    buildExecutions.delete(executionId);
+    finalizeBuildExecution(executionId, metadata, {
+      error: { status: "ERROR", message: err.message },
+      complete: {
+        status: "FAILED",
+        exitCode: 1,
+        message: `Angular build generation failed: ${err.message}`,
+        releaseTag: metadata.releaseTag,
+      },
+    });
   });
 
   return child;
@@ -533,8 +618,12 @@ app.post("/tdkUIUpgrade/angularBuildGeneration", (req, res) => {
 // ========== ✅ API 5: Stream Angular Build Generation Logs (SSE) ==========
 app.get("/tdkUIUpgrade/angularBuildGeneration/logs", (req, res) => {
   const executionId = req.query.executionId;
+  const activeMetadata = buildExecutions.get(executionId);
+  const terminalMetadata = !activeMetadata
+    ? terminalExecutions.get(executionId)
+    : null;
 
-  if (!executionId || !buildExecutions.has(executionId)) {
+  if (!executionId || (!activeMetadata && !terminalMetadata)) {
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
@@ -545,7 +634,7 @@ app.get("/tdkUIUpgrade/angularBuildGeneration/logs", (req, res) => {
     return;
   }
 
-  const metadata = buildExecutions.get(executionId);
+  const metadata = activeMetadata || terminalMetadata;
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -556,18 +645,25 @@ app.get("/tdkUIUpgrade/angularBuildGeneration/logs", (req, res) => {
   metadata.subscribers = metadata.subscribers || new Set();
   metadata.outputBuffer = metadata.outputBuffer || [];
 
-  res.write(
-    `event: status\ndata: ${JSON.stringify({ message: "Starting Angular build generation for release: " + metadata.releaseTag })}\n\n`,
-  );
+  if (!metadata.finalized) {
+    res.write(
+      `event: status\ndata: ${JSON.stringify({ message: "Starting Angular build generation for release: " + metadata.releaseTag })}\n\n`,
+    );
+    metadata.subscribers.add(res);
+    metadata.outputBuffer.forEach((entry) => {
+      writeSseEvent(res, entry.event, entry.payload);
+    });
 
-  metadata.subscribers.add(res);
+    res.on("close", () => {
+      metadata.subscribers.delete(res);
+    });
+    return;
+  }
+
   metadata.outputBuffer.forEach((entry) => {
     writeSseEvent(res, entry.event, entry.payload);
   });
-
-  res.on("close", () => {
-    metadata.subscribers.delete(res);
-  });
+  res.end();
 });
 
 // ========== 🔐 Global Error Handling for Multer ==========
