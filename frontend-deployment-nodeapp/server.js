@@ -345,13 +345,34 @@ function enqueueExecutionEvent(metadata, eventName, payload) {
   });
 }
 
+function isProcessGroupAlive(pid) {
+  if (!pid) {
+    return false;
+  }
+
+  try {
+    if (process.platform === "win32") {
+      process.kill(pid, 0);
+      return true;
+    }
+
+    process.kill(-pid, 0);
+    return true;
+  } catch (error) {
+    if (error && error.code === "ESRCH") {
+      return false;
+    }
+    return true;
+  }
+}
+
 async function terminateBuildProcessGroup(metadata, signal = "SIGTERM") {
   const child = metadata && metadata.process;
   if (!child) {
     return true;
   }
 
-  if (child.exitCode !== null || child.signalCode) {
+  if (!isProcessGroupAlive(child.pid)) {
     return true;
   }
 
@@ -369,7 +390,7 @@ async function terminateBuildProcessGroup(metadata, signal = "SIGTERM") {
 
   const startedAt = Date.now();
   while (Date.now() - startedAt < 5000) {
-    if (child.exitCode !== null || child.signalCode) {
+    if (!isProcessGroupAlive(child.pid)) {
       return true;
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
@@ -388,7 +409,7 @@ async function terminateBuildProcessGroup(metadata, signal = "SIGTERM") {
   }
 
   await new Promise((resolve) => setTimeout(resolve, 250));
-  return child.exitCode !== null || child.signalCode !== null;
+  return !isProcessGroupAlive(child.pid);
 }
 
 async function finalizeBuildExecution(executionId, metadata, outcome) {
@@ -397,9 +418,29 @@ async function finalizeBuildExecution(executionId, metadata, outcome) {
   }
 
   metadata.finalized = true;
+  metadata.finished = false;
   metadata.expiresAt = Date.now() + TERMINAL_EXECUTION_TTL_MS;
 
-  await terminateBuildProcessGroup(metadata, "SIGTERM");
+  const terminated = await terminateBuildProcessGroup(metadata, "SIGTERM");
+
+  if (!terminated) {
+    metadata.status = "FAILED";
+    metadata.terminationFailed = true;
+    metadata.finished = true;
+    const failureNote = {
+      status: "ERROR",
+      message:
+        "Angular build process group did not terminate cleanly; release slot kept locked",
+    };
+    if (outcome && outcome.error) {
+      outcome.error = failureNote;
+    }
+    if (!outcome || !outcome.complete) {
+      outcome = { ...outcome, error: failureNote };
+    }
+    console.error(failureNote.message);
+    return;
+  }
 
   if (metadata.logStream && !metadata.logStream.closed) {
     try {
@@ -432,6 +473,7 @@ async function finalizeBuildExecution(executionId, metadata, outcome) {
 
   subscribers.forEach((subscriber) => subscriber.end());
   metadata.subscribers.clear();
+  metadata.finished = true;
   releaseUpgradeJob();
   buildExecutions.delete(executionId);
   terminalExecutions.set(executionId, metadata);
@@ -603,7 +645,7 @@ function startAngularBuildExecution(executionId, metadata) {
   return child;
 }
 
-app.post("/tdkUIUpgrade/angularBuildGeneration", (req, res) => {
+app.post("/tdkUIUpgrade/angularBuildGeneration", async (req, res) => {
   if (!tryAcquireUpgradeJob()) {
     return res.status(429).json({
       error: `Another deployment job is already running. Please wait for it to finish.`,
@@ -613,6 +655,7 @@ app.post("/tdkUIUpgrade/angularBuildGeneration", (req, res) => {
   const releaseTag = req.query.releaseTag;
 
   if (!releaseTag || releaseTag.trim() === "") {
+    releaseUpgradeJob();
     return res
       .status(400)
       .json({ error: "Release tag or branch name is required" });
@@ -626,48 +669,77 @@ app.post("/tdkUIUpgrade/angularBuildGeneration", (req, res) => {
     .split(".")[0];
   const upgradeDir = `/mnt/appUpgrade/AngularBuild_${timestamp}`;
 
-  const buildRoot = "/mnt/AngularBuild";
-  fs.mkdirSync(buildRoot, { recursive: true });
-  const workDir = fs.mkdtempSync(path.join(buildRoot, "build-"));
+  let metadata = null;
 
-  const apiUrl = process.env.BACKEND_URL || "";
-  const configuredNodeApiUrl =
-    process.env.NODE_API_URL || process.env.PUBLIC_APPUPGRADE_URL || "";
-  const nodeApiUrl = configuredNodeApiUrl
-    ? configuredNodeApiUrl.replace(/\/$/, "") + "/"
-    : `${req.protocol}://${req.get("host")}/appupgrade/`;
+  try {
+    const buildRoot = "/mnt/AngularBuild";
+    fs.mkdirSync(buildRoot, { recursive: true });
+    const workDir = fs.mkdtempSync(path.join(buildRoot, "build-"));
 
-  const metadata = {
-    executionId,
-    releaseTag,
-    upgradeDir,
-    workDir,
-    apiUrl,
-    nodeApiUrl,
-    status: "RUNNING",
-    process: null,
-    createdAt: new Date(),
-    outputBuffer: [],
-    subscribers: new Set(),
-  };
+    const apiUrl = process.env.BACKEND_URL || "";
+    const configuredNodeApiUrl =
+      process.env.NODE_API_URL || process.env.PUBLIC_APPUPGRADE_URL || "";
+    const nodeApiUrl = configuredNodeApiUrl
+      ? configuredNodeApiUrl.replace(/\/$/, "") + "/"
+      : `${req.protocol}://${req.get("host")}/appupgrade/`;
 
-  buildExecutions.set(executionId, metadata);
+    metadata = {
+      executionId,
+      releaseTag,
+      upgradeDir,
+      workDir,
+      apiUrl,
+      nodeApiUrl,
+      status: "RUNNING",
+      process: null,
+      createdAt: new Date(),
+      outputBuffer: [],
+      subscribers: new Set(),
+    };
 
-  const child = startAngularBuildExecution(executionId, metadata);
-  if (!child) {
+    buildExecutions.set(executionId, metadata);
+
+    const child = startAngularBuildExecution(executionId, metadata);
+    if (!child) {
+      return res.status(500).json({
+        error: "Angular build generation could not be started",
+      });
+    }
+
+    res.json({
+      data: {
+        executionId,
+        status: "RUNNING",
+        message: "Angular build generation started",
+      },
+      message: "Angular build generation started successfully",
+    });
+  } catch (error) {
+    const startupError =
+      error && error.message ? error.message : "Unknown startup error";
+
+    if (metadata && !metadata.finalized) {
+      await finalizeBuildExecution(executionId, metadata, {
+        error: {
+          status: "ERROR",
+          message: `Angular build generation startup failed: ${startupError}`,
+        },
+        complete: {
+          status: "FAILED",
+          exitCode: 1,
+          message: `Angular build generation startup failed: ${startupError}`,
+          releaseTag,
+        },
+      });
+    } else if (!metadata) {
+      releaseUpgradeJob();
+    }
+
     return res.status(500).json({
       error: "Angular build generation could not be started",
+      details: startupError,
     });
   }
-
-  res.json({
-    data: {
-      executionId,
-      status: "RUNNING",
-      message: "Angular build generation started",
-    },
-    message: "Angular build generation started successfully",
-  });
 });
 
 // ========== ✅ API 5: Stream Angular Build Generation Logs (SSE) ==========
@@ -694,6 +766,7 @@ app.get("/tdkUIUpgrade/angularBuildGeneration/logs", (req, res) => {
   if (
     metadata &&
     metadata.finalized &&
+    metadata.finished &&
     metadata.expiresAt &&
     Date.now() >= metadata.expiresAt
   ) {
@@ -717,7 +790,7 @@ app.get("/tdkUIUpgrade/angularBuildGeneration/logs", (req, res) => {
   metadata.subscribers = metadata.subscribers || new Set();
   metadata.outputBuffer = metadata.outputBuffer || [];
 
-  if (!metadata.finalized) {
+  if (!metadata.finished) {
     res.write(
       `event: status\ndata: ${JSON.stringify({ message: "Starting Angular build generation for release: " + metadata.releaseTag })}\n\n`,
     );
