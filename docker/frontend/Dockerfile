@@ -55,22 +55,20 @@ RUN npm install --force && \
     npm run build
 
 
-# ---------- Stage 2: Node Binary Builder ----------
-FROM node:18-alpine AS nodebuilder
+# ---------- Stage 2: Node.js API Server Setup ----------
+FROM node:18-alpine AS nodeapp
 
 # Build argument for branch name (needs to be redeclared in each stage)
 ARG RELEASE_TAG=develop
-# Note: 'main' is the default branch name if not set from environment variable
 
 WORKDIR /nodeapp
 
-RUN apk add --no-cache git python3 make g++ \
-    && npm install -g pkg
+RUN apk add --no-cache git
 
-# Clone your deployment repo
+# Clone deployment repo
 RUN git clone "https://github.com/rdkcentral/tdk-testmanager-deployment.git"
 
-# Switch to the specified branch, then navigate to the directory
+# Switch to the specified branch
 RUN cd tdk-testmanager-deployment && git checkout ${RELEASE_TAG}
 
 # Move into nodeapp
@@ -79,14 +77,11 @@ WORKDIR /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp
 # Install dependencies
 RUN npm install --force
 
-# Build Node binary for Alpine Linux
-RUN pkg . --targets node18-alpine-x64 --output my-node-api
-
-# ----------- Stage 2: Serve using NGINX ------------
+# ----------- Stage 3: Serve using NGINX + Node.js ----------
 FROM nginx:1.28.0-alpine
 
-# Install bash (optional for debugging; safe to skip in prod)
-RUN apk add --no-cache bash
+# Install bash, git and Node.js
+RUN apk add --no-cache bash git nodejs npm
 
 # Remove default config and add your custom NGINX config
 RUN rm -f /etc/nginx/conf.d/default.conf
@@ -95,21 +90,26 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Copy built Angular app from builder stage to NGINX's web root
 COPY --from=builder /app/tdk-testmanager-frontend/dist/tdktest-manager-app/browser /var/www/html/
 
-# Set proper permissions (optional)
+# Set proper permissions
 RUN chmod -R 755 /var/www/html \
     && chown -R nginx:nginx /var/www/html
 
-# Copy binary + deploy script from node build stage
-COPY --from=nodebuilder /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/my-node-api /
-COPY --from=nodebuilder /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/deploy.sh /
+# Copy Node.js app files and scripts from nodeapp stage
+COPY --from=nodeapp /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/server.js /app/
+COPY --from=nodeapp /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/node_modules /app/node_modules/
+COPY --from=nodeapp /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/deploy.sh /app/
+COPY --from=nodeapp /nodeapp/tdk-testmanager-deployment/frontend-deployment-nodeapp/angular_build_generation.sh /app/
 
-# Give execute permission
-RUN chmod +x /my-node-api /deploy.sh
+# Give execute permission to shell scripts
+RUN chmod +x /app/deploy.sh /app/angular_build_generation.sh
 
-# Expose the NGINX port
+# Set working directory for Node.js app
+WORKDIR /app
+
+# Expose ports
 EXPOSE 8443 3000
 
-# Start Node binary in background, then start NGINX
-CMD /my-node-api & nginx -g 'daemon off;'
+# Start Node.js server in background, then start NGINX
+CMD node server.js & nginx -g 'daemon off;'
 
 
