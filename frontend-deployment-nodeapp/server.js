@@ -602,7 +602,7 @@ app.post("/tdkUIUpgrade/angularBuildGeneration", async (req, res) => {
       process.env.NODE_API_URL || process.env.PUBLIC_APPUPGRADE_URL || "";
     const nodeApiUrl = configuredNodeApiUrl
       ? configuredNodeApiUrl.replace(/\/$/, "") + "/"
-      : `${req.protocol}://${req.get("host")}/appupgrade/`;
+      : `${req.protocol}://${req.get("host")}/`;
 
     metadata = {
       executionId,
