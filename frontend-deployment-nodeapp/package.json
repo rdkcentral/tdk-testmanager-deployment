@@ -4,6 +4,9 @@
   "description": "Upload and deploy tool",
   "main": "server.js",
   "bin": "server.js",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "start": "node server.js"
   },

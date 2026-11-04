@@ -56,7 +56,7 @@ RUN npm install --force && \
 
 
 # ---------- Stage 2: Node.js API Server Setup ----------
-FROM node:18-alpine AS nodeapp
+FROM node:22-alpine AS nodeapp
 
 # Build argument for branch name (needs to be redeclared in each stage)
 ARG RELEASE_TAG=develop
