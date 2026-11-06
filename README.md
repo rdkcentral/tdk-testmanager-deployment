@@ -733,58 +733,7 @@ For example, if the streams are hosted at `/opt/tomcat/webapps/teststreams/TDK_C
 test_streams_base_path = "http://<TM_IP>:<port>/teststreams/TDK_Clear_Test_Streams_Sunrise/"
 ```
 
-#### 3. Enable Streams Path in Nginx Configuration
-
-Add the following proxy configuration to the `nginx.conf` file in the `tdk-frontend` container.
-
-Enter the frontend container:
-
-```bash
-docker exec -it tdk-frontend bash
-```
-
-Navigate to `/etc/nginx/nginx.conf`, edit the file, and add the test streams location block:
-
-```nginx
-location /teststreams/ {
-    proxy_pass http://tdk-backend:8080/teststreams/;
-}
-```
-
-The updated Nginx server block should look like this:
-
-```nginx
-server {
-    listen       8443;
-    listen       [::]:8443;
-
-    root       /var/www/html;
-    add_header Cache-Control must-revalidate;
-    etag on;
-    index index.html index.htm index.nginx-debian.html;
-    try_files $uri $uri/ /index.html =404;
-
-    include /etc/nginx/default.d/*.conf;
-
-    location /tdkservice/ {
-        proxy_pass http://tdk-backend:8080/tdkservice/;
-    }
-
-    location /appupgrade/tdkUIUpgrade/ {
-        proxy_pass http://tdk-frontend:3000/tdkUIUpgrade/;
-    }
-
-    location /teststreams/ {
-        proxy_pass http://tdk-backend:8080/teststreams/;
-    }
-}
-```
-
-Restart Nginx to apply the changes:
-
-```bash
-nginx -s reload
-```
+> **Note:** The Nginx proxy configuration for `/teststreams/` is now included by default in the `nginx.conf` file during deployment. No manual Nginx configuration is required.
 
 </details>
 
