@@ -64,7 +64,14 @@ cp -r "$src_path/"* "$deploy_path"/ || {
 
 # Step 4: Permissions
 echo "[4/4] Setting ownership and permissions..." | tee -a "$log"
-chown -R www-data:www-data "$deploy_path" || echo "⚠️ chown failed. Check user/group." | tee -a "$log"
+# Alpine nginx images use the "nginx" user/group; fall back to www-data for
+# Debian/Ubuntu-based images if "nginx" user doesn't exist.
+if id nginx >/dev/null 2>&1; then
+  OWNER="nginx:nginx"
+else
+  OWNER="www-data:www-data"
+fi
+chown -R "$OWNER" "$deploy_path" || echo "⚠️ chown failed. Check user/group." | tee -a "$log"
 chmod -R u=rwX,g=rX,o=rX "$deploy_path"
 
 # Restart nginx
